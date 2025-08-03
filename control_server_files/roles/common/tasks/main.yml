@@ -16,7 +16,6 @@
       - python3-pip
       - git
       - wget
-      - curl
       - unzip
       - sqlite
       - httpd

@@ -145,13 +145,13 @@ HTML_TEMPLATE = '''
         </div>
         
         <div class="flash-messages">
-            {% with messages = get_flashed_messages() %}
+            {% raw %}{% with messages = get_flashed_messages() %}
                 {% if messages %}
                     {% for message in messages %}
                         <div class="flash">{{ message }}</div>
                     {% endfor %}
                 {% endif %}
-            {% endwith %}
+            {% endwith %}{% endraw %}
         </div>
         
         <div class="form-section">
@@ -166,7 +166,7 @@ HTML_TEMPLATE = '''
         
         <div class="notes-section">
             <h2 class="notes-title">📋 Your Notes</h2>
-            {% if notes %}
+            {% raw %}{% if notes %}
                 {% for note in notes %}
                     <div class="note">
                         <div class="note-meta">
@@ -181,11 +181,11 @@ HTML_TEMPLATE = '''
                 <div class="no-notes">
                     No notes yet. Start by writing your first note above! ✨
                 </div>
-            {% endif %}
+            {% endif %}{% endraw %}
         </div>
         
-        <div class="stats">
-            Total Notes: {{ notes|length if notes else 0 }} | 
+                <div class="stats">
+            Total Notes: {% raw %}{{ notes|length if notes else 0 }}{% endraw %} |
             Deployed with Ansible on {{ ansible_date_time.date }}
         </div>
     </div>

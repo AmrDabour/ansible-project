@@ -65,10 +65,25 @@
   notify: restart httpd
   tags: wsgi
 
-- name: Install mod_wsgi for Apache
-  yum:
-    name: python3-mod_wsgi
-    state: present
+- name: Install mod_wsgi via pip
+  pip:
+    name: mod_wsgi
+    executable: pip3
+  notify: restart httpd
+  tags: apache
+
+- name: Configure mod_wsgi module
+  shell: mod_wsgi-express module-config
+  register: mod_wsgi_config
+  tags: apache
+
+- name: Create mod_wsgi configuration file
+  copy:
+    content: "{{ mod_wsgi_config.stdout }}"
+    dest: /etc/httpd/conf.modules.d/10-wsgi.conf
+    owner: root
+    group: root
+    mode: '0644'
   notify: restart httpd
   tags: apache
 
