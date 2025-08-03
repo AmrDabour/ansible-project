@@ -13,7 +13,7 @@ app.secret_key = "simple_noteapp_key"
 
 # Configuration
 DATABASE_PATH = "/opt/noteapp/notes.db"
-PORT = 80
+PORT = 8080
 
 # Simple HTML Template
 HTML_TEMPLATE = """

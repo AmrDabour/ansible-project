@@ -41,7 +41,7 @@ chmod +x deploy_simple.sh
 ```
 
 ### 3. Access Application
-Open browser: `http://YOUR_WEB_SERVER_IP`
+Open browser: `http://YOUR_WEB_SERVER_IP:8080`
 
 ## 🛠️ What Gets Deployed
 - Python 3 + Flask installation

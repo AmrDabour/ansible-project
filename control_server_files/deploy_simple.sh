@@ -37,7 +37,7 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}🎉 Deployment Successful!${NC}"
     echo
     WEB_SERVER_IP=$(ansible-inventory -i inventory/hosts --list | grep -o '"[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*"' | tr -d '"' | head -1)
-    echo "🌐 Access your app: http://$WEB_SERVER_IP"
+    echo "🌐 Access your app: http://$WEB_SERVER_IP:8080"
     echo "🔧 Check service: ssh to server and run 'sudo systemctl status noteapp'"
     echo
 else

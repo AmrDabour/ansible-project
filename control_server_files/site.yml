@@ -84,10 +84,18 @@
         mode: '0644'
       notify: reload systemd
       
-    # 8. Configure firewall
-    - name: Allow HTTP traffic
+    # 8. Configure firewall for port 8080
+    - name: Allow HTTP traffic on port 80
       firewalld:
         service: http
+        permanent: true
+        state: enabled
+        immediate: true
+      ignore_errors: true
+      
+    - name: Allow port 8080 for Flask app
+      firewalld:
+        port: 8080/tcp
         permanent: true
         state: enabled
         immediate: true
@@ -104,7 +112,7 @@
     # 10. Check if app is running
     - name: Wait for application to start
       wait_for:
-        port: 80
+        port: 8080
         delay: 5
         timeout: 30
       ignore_errors: true
@@ -120,8 +128,8 @@
         msg: |
           🎉 Simple Note-Taking App Deployed Successfully!
           
-          ✅ Application URL: http://{{ ansible_default_ipv4.address }}
+          ✅ Application URL: http://{{ ansible_default_ipv4.address }}:8080
           ✅ Database: SQLite at {{ app_dir }}/notes.db
           ✅ Service: sudo systemctl status noteapp
           
-          Test it now: curl http://{{ ansible_default_ipv4.address }} 
+          Test it now: curl http://{{ ansible_default_ipv4.address }}:8080 
