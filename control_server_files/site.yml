@@ -62,7 +62,15 @@
         requirements: "{{ app_dir }}/requirements.txt"
         executable: pip3
         
-    # 7. Create systemd service file for advanced app
+    # 7. Stop and disable Apache (conflicts with port 80)
+    - name: Stop and disable Apache
+      systemd:
+        name: httpd
+        state: stopped
+        enabled: false
+      ignore_errors: true
+      
+    # 8. Create systemd service file for advanced app
     - name: Create systemd service file for advanced app
       copy:
         content: |
@@ -74,7 +82,7 @@
           Type=simple
           User={{ app_user }}
           WorkingDirectory={{ app_dir }}
-          Environment=FLASK_PORT=80
+          Environment=FLASK_PORT=5000
           Environment=DB_PATH={{ app_dir }}/notes.db
           ExecStart=/usr/bin/python3 {{ app_dir }}/frontend.py
           Restart=always
@@ -86,16 +94,16 @@
         mode: '0644'
       notify: reload systemd
       
-    # 8. Configure firewall for port 80
-    - name: Allow HTTP traffic on port 80
+    # 9. Configure firewall for port 5000
+    - name: Allow traffic on port 5000
       firewalld:
-        service: http
+        port: 5000/tcp
         permanent: true
         state: enabled
         immediate: true
       ignore_errors: true
       
-    # 9. Start and enable service
+    # 10. Start and enable service
     - name: Start and enable noteapp service
       systemd:
         name: noteapp
@@ -103,10 +111,10 @@
         enabled: true
         daemon_reload: true
         
-    # 10. Check if app is running on port 80
+    # 11. Check if app is running on port 5000
     - name: Wait for application to start
       wait_for:
-        port: 80
+        port: 5000
         delay: 5
         timeout: 30
       ignore_errors: true
@@ -122,7 +130,7 @@
         msg: |
           🎉 Advanced Note-Taking App Deployed Successfully!
           
-          ✅ Application URL: http://{{ ansible_default_ipv4.address }}
+          ✅ Application URL: http://{{ ansible_default_ipv4.address }}:5000
           ✅ Features: Interactive UI, Drag & Drop Notes, Real-time Search
           ✅ Database: SQLite at {{ app_dir }}/notes.db  
           ✅ Service: sudo systemctl status noteapp
@@ -134,4 +142,4 @@
           - Full CRUD operations via API
           - Responsive design
           
-          Test it now: curl http://{{ ansible_default_ipv4.address }} 
+          Test it now: curl http://{{ ansible_default_ipv4.address }}:5000 
