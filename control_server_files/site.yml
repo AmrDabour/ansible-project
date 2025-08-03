@@ -1,0 +1,62 @@
+---
+# Note-Taking Web App Deployment - Main Playbook
+# DevOps Project: Deploy on Amazon Linux EC2 with SQLite
+
+- name: Deploy Note-Taking Web Application
+  hosts: noteapp_servers
+  become: true
+  gather_facts: true
+  
+  vars:
+    app_name: "note-taking-app"
+    app_user: "webapp"
+    app_port: 80
+    app_dir: "/opt/noteapp"
+    sqlite_db_path: "{{ app_dir }}/database/notes.db"
+    
+  roles:
+    - role: common
+      tags: ["common", "setup"]
+      
+    - role: database  
+      tags: ["database", "sqlite"]
+      
+    - role: webapp
+      tags: ["webapp", "application"]
+      
+    - role: backup
+      tags: ["backup", "maintenance"]
+
+  post_tasks:
+    - name: Display deployment information
+      debug:
+        msg: |
+          ==========================================
+          🚀 Note-Taking App Deployment Complete!
+          ==========================================
+          ✅ Application URL: http://{{ ansible_default_ipv4.address }}
+          ✅ Database: SQLite at {{ sqlite_db_path }}
+          ✅ Application User: {{ app_user }}
+          ✅ Application Directory: {{ app_dir }}
+          ✅ Backup Location: {{ app_dir }}/backups/
+          ==========================================
+          
+    - name: Test application health
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 3
+      delay: 5
+      ignore_errors: true
+      
+    - name: Show health check result
+      debug:
+        msg: "✅ Application is healthy and responding"
+      when: health_check.status == 200
+      
+    - name: Show health check failure
+      debug:
+        msg: "❌ Application health check failed - please check logs"
+      when: health_check.status != 200 

@@ -1,0 +1,256 @@
+#!/usr/bin/env python3
+"""
+Note-Taking Web Application
+Simple Flask app with SQLite database for DevOps project
+"""
+
+from flask import Flask, render_template_string, request, redirect, url_for, flash
+import sqlite3
+import datetime
+import os
+
+app = Flask(__name__)
+app.secret_key = 'noteapp_secret_key_{{ ansible_date_time.epoch }}'
+
+# Configuration
+DATABASE_PATH = '{{ sqlite_db_path }}'
+APP_PORT = {{ app_port if app_port != 80 else 5000 }}
+
+# HTML Template
+HTML_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 Note-Taking App</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .form-section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .notes-section {
+            padding: 30px;
+        }
+        .notes-title {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .note {
+            background: #f8f9fa;
+            border-left: 4px solid #4facfe;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 0 10px 10px 0;
+        }
+        .note-meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .note-content {
+            color: #333;
+            line-height: 1.6;
+            font-size: 1em;
+        }
+        .no-notes {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+        }
+        .flash-messages {
+            padding: 0 30px;
+        }
+        .flash {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .stats {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Note-Taking App</h1>
+            <p>Capture your thoughts and ideas instantly</p>
+        </div>
+        
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="flash">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="form-section">
+            <form method="POST" action="/">
+                <div class="form-group">
+                    <label for="note">Write your note:</label>
+                    <textarea name="note" id="note" placeholder="Don't forget to review the IAM policy lecture notes..." required></textarea>
+                </div>
+                <button type="submit" class="btn">💾 Save Note</button>
+            </form>
+        </div>
+        
+        <div class="notes-section">
+            <h2 class="notes-title">📋 Your Notes</h2>
+            {% if notes %}
+                {% for note in notes %}
+                    <div class="note">
+                        <div class="note-meta">
+                            🕒 {{ note.timestamp }}
+                        </div>
+                        <div class="note-content">
+                            📌 {{ note.content }}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-notes">
+                    No notes yet. Start by writing your first note above! ✨
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="stats">
+            Total Notes: {{ notes|length if notes else 0 }} | 
+            Deployed with Ansible on {{ ansible_date_time.date }}
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+def get_db_connection():
+    """Get database connection"""
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def get_notes():
+    """Retrieve all notes ordered by timestamp desc"""
+    conn = get_db_connection()
+    notes = conn.execute(
+        'SELECT * FROM notes ORDER BY timestamp DESC'
+    ).fetchall()
+    conn.close()
+    return notes
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        note_content = request.form['note'].strip()
+        
+        if note_content:
+            # Save note to database
+            conn = get_db_connection()
+            conn.execute(
+                'INSERT INTO notes (content) VALUES (?)',
+                (note_content,)
+            )
+            conn.commit()
+            conn.close()
+            
+            flash('Note saved successfully! 🎉')
+            return redirect(url_for('index'))
+        else:
+            flash('Please enter a note before saving.')
+    
+    # Get all notes for display
+    notes = get_notes()
+    return render_template_string(HTML_TEMPLATE, notes=notes)
+
+@app.route('/health')
+def health():
+    """Health check endpoint"""
+    try:
+        conn = get_db_connection()
+        conn.execute('SELECT 1').fetchone()
+        conn.close()
+        return {'status': 'healthy', 'database': 'connected'}, 200
+    except Exception as e:
+        return {'status': 'unhealthy', 'error': str(e)}, 500
+
+if __name__ == '__main__':
+    # Ensure database exists
+    if not os.path.exists(DATABASE_PATH):
+        print(f"Warning: Database not found at {DATABASE_PATH}")
+    
+    # Run the application
+    app.run(
+        host='0.0.0.0',
+        port=APP_PORT,
+        debug=False
+    ) 

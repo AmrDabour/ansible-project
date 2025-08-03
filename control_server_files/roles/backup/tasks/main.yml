@@ -1,0 +1,108 @@
+---
+# Backup Role - SQLite Database and Application Backup
+# Creates backup strategy for the note-taking application
+
+- name: Create backup directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  loop:
+    - "{{ app_dir }}/backups"
+    - "{{ app_dir }}/backups/database"
+    - "{{ app_dir }}/backups/application"
+    - "{{ app_dir }}/backups/logs"
+  tags: backup_setup
+
+- name: Create database backup script
+  template:
+    src: backup_database.sh.j2
+    dest: "{{ app_dir }}/backups/backup_database.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  tags: backup_scripts
+
+- name: Create application backup script
+  template:
+    src: backup_application.sh.j2
+    dest: "{{ app_dir }}/backups/backup_application.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  tags: backup_scripts
+
+- name: Create restore script
+  template:
+    src: restore_backup.sh.j2
+    dest: "{{ app_dir }}/backups/restore_backup.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  tags: backup_scripts
+
+- name: Create backup management script
+  template:
+    src: manage_backups.sh.j2
+    dest: "{{ app_dir }}/backups/manage_backups.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  tags: backup_scripts
+
+- name: Setup daily database backup cron job
+  cron:
+    name: "Daily SQLite database backup"
+    minute: "0"
+    hour: "2"
+    job: "{{ app_dir }}/backups/backup_database.sh"
+    user: "{{ app_user }}"
+  tags: backup_cron
+
+- name: Setup weekly application backup cron job
+  cron:
+    name: "Weekly application backup"
+    minute: "30"
+    hour: "3"
+    weekday: "0"
+    job: "{{ app_dir }}/backups/backup_application.sh"
+    user: "{{ app_user }}"
+  tags: backup_cron
+
+- name: Create initial database backup
+  shell: "{{ app_dir }}/backups/backup_database.sh"
+  become_user: "{{ app_user }}"
+  tags: initial_backup
+
+- name: Set up log rotation for application logs
+  template:
+    src: noteapp_logrotate.j2
+    dest: /etc/logrotate.d/noteapp
+    mode: '0644'
+  tags: log_rotation
+
+- name: Create backup status check script
+  template:
+    src: check_backup_status.sh.j2
+    dest: "{{ app_dir }}/backups/check_backup_status.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  tags: backup_monitoring
+
+- name: Display backup information
+  debug:
+    msg: |
+      📦 Backup Configuration Complete:
+      ✅ Database backups: Daily at 2:00 AM
+      ✅ Application backups: Weekly on Sunday at 3:30 AM
+      ✅ Backup location: {{ app_dir }}/backups/
+      ✅ Scripts available:
+         - backup_database.sh
+         - backup_application.sh
+         - restore_backup.sh
+         - manage_backups.sh
+         - check_backup_status.sh
+  tags: backup_info 

@@ -1,0 +1,104 @@
+---
+# WebApp Role - Note-Taking Application Deployment
+# Deploys Python Flask application with SQLite
+
+- name: Clone application repository
+  git:
+    repo: "https://github.com/AmrDabour/ansible-project.git"
+    dest: "{{ app_dir }}/source"
+    version: master
+    force: true
+  become_user: "{{ app_user }}"
+  tags: deploy
+
+- name: Create Python application file
+  template:
+    src: app.py.j2
+    dest: "{{ app_dir }}/app/app.py"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0755'
+  notify: restart noteapp
+  tags: app
+
+- name: Create requirements.txt for the application
+  template:
+    src: requirements.txt.j2
+    dest: "{{ app_dir }}/app/requirements.txt"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0644'
+  tags: app
+
+- name: Install Python requirements
+  pip:
+    requirements: "{{ app_dir }}/app/requirements.txt"
+    executable: pip3
+  become_user: "{{ app_user }}"
+  tags: python
+
+- name: Create systemd service file
+  template:
+    src: noteapp.service.j2
+    dest: /etc/systemd/system/noteapp.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart noteapp
+  tags: service
+
+- name: Create Apache virtual host configuration
+  template:
+    src: noteapp.conf.j2
+    dest: /etc/httpd/conf.d/noteapp.conf
+    mode: '0644'
+  notify: restart httpd
+  tags: apache
+
+- name: Create WSGI file
+  template:
+    src: app.wsgi.j2
+    dest: "{{ app_dir }}/app/app.wsgi"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0644'
+  notify: restart httpd
+  tags: wsgi
+
+- name: Install mod_wsgi for Apache
+  yum:
+    name: python3-mod_wsgi
+    state: present
+  notify: restart httpd
+  tags: apache
+
+- name: Enable and start noteapp service
+  systemd:
+    name: noteapp
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: service
+
+- name: Create application log file
+  file:
+    path: "{{ app_dir }}/logs/app.log"
+    state: touch
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: '0644'
+  tags: logs
+
+- name: Set SELinux context for application directory
+  sefcontext:
+    target: "{{ app_dir }}(/.*)?"
+    setype: httpd_exec_t
+  register: selinux_context
+  ignore_errors: true
+  tags: selinux
+
+- name: Apply SELinux context
+  command: restorecon -R {{ app_dir }}
+  when: selinux_context is succeeded
+  ignore_errors: true
+  tags: selinux 

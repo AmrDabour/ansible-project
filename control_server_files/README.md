@@ -1,377 +1,417 @@
-# 🚀 Simple Note App - Ansible Deployment
+# 📝 DevOps Project: Note-Taking Web App on AWS EC2
 
-This directory contains a complete Ansible automation system for deploying the Simple Note App across multiple servers with separation of concerns (web server + database server).
+## 🎯 Project Overview
 
-## 📋 File Structure
+This project deploys a note-taking web application on Amazon Linux EC2 using Ansible roles, featuring SQLite database integration and automated backup strategy.
 
+### 🏗️ Architecture
 ```
-control_server_files/
-├── deploy.yml                 # Main Ansible playbook
-├── deploy.sh                  # Deployment automation script
-├── hosts                      # Original inventory file
-├── inventory.yml              # Enhanced YAML inventory
-├── ansible.cfg                # Ansible configuration
-├── vars/
-│   └── main.yml              # Variables and configuration
-└── templates/
-    ├── env.j2                # Flask app environment template
-    └── simple-note-app.service.j2  # Systemd service template
-```
-
-## 🏗️ Infrastructure Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Controller     │    │   Web Server    │    │  Database       │
-│  Server         │───▶│  3.221.163.59   │───▶│  Server         │
-│  (Ansible)      │    │  - Flask App    │    │  35.175.123.232 │
-│                 │    │  - Python 3     │    │  - MariaDB      │
-│                 │    │  - Systemd      │    │  - Remote Access│
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                   AWS EC2 Instance                         │
+│                  (Amazon Linux 2)                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   Apache    │  │   Python    │  │       SQLite        │  │
+│  │   HTTP      │◄─┤    Flask    │◄─┤     Database        │  │
+│  │   Port 80   │  │ Application │  │   /opt/noteapp/     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │           Automated Backup System                      │  │
+│  │  • Daily database backups (2:00 AM)                   │  │
+│  │  • Weekly application backups (Sunday 3:30 AM)        │  │
+│  │  • Log rotation and retention                          │  │
+│  └─────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## 🎯 What Gets Deployed
+## 📋 Features
 
-### Database Server (35.175.123.232)
-- ✅ **MariaDB Server** - Complete database installation
-- ✅ **Database Creation** - `simple_notes` database
-- ✅ **User Management** - Application-specific database user
-- ✅ **Remote Access** - Configured for web server connection
-- ✅ **Firewall Rules** - Port 3306 opened securely
-- ✅ **Security** - Root password set and secured
+### ✅ **Application Features**
+- **Simple Note Interface**: Clean, responsive web UI
+- **SQLite Database**: Lightweight, serverless database
+- **Timestamp Tracking**: Automatic note creation timestamps  
+- **Real-time Display**: Notes appear immediately after submission
+- **Health Check Endpoint**: `/health` for monitoring
 
-### Web Server (3.221.163.59)
-- ✅ **Python Environment** - Python 3, pip, virtual environment
-- ✅ **Application Code** - Cloned from GitHub repository
-- ✅ **Dependencies** - All Python packages from requirements.txt
-- ✅ **Configuration** - Auto-generated .env file
-- ✅ **Systemd Service** - Application runs as system service
-- ✅ **Auto-restart** - Service restarts on failure
-- ✅ **Firewall Rules** - Port 5000 opened for web access
+### ✅ **Infrastructure Features**
+- **Ansible Roles**: Modular, reusable automation
+- **Amazon Linux Support**: Optimized for AWS EC2
+- **Apache HTTP Server**: Production web server on port 80
+- **Systemd Integration**: Service management and auto-restart
+- **Firewall Configuration**: Secure SSH and HTTP access
+
+### ✅ **Backup Strategy**
+- **Daily Database Backups**: SQLite database preservation
+- **Weekly Application Backups**: Complete application state
+- **Retention Policy**: Automated cleanup of old backups
+- **Restore Scripts**: Easy recovery procedures
+- **Log Rotation**: System log management
 
 ## 🚀 Quick Start
 
-### 1. Prerequisites (Controller Server)
+### 1. **Prerequisites**
 
+**AWS Setup:**
+- EC2 instance (t2.micro) with Amazon Linux 2
+- Security groups: SSH (22), HTTP (80)
+- SSH key pair for access
+
+**Local Setup:**
 ```bash
-# Install Ansible
+# Install Ansible (on your control machine)
 sudo yum install epel-release -y
 sudo yum install ansible -y
 
 # Or on Ubuntu/Debian:
-sudo apt update
-sudo apt install ansible -y
-
-# Verify installation
-ansible --version
+sudo apt update && sudo apt install ansible -y
 ```
 
-### 2. Basic Deployment
+### 2. **Configuration**
+
+**Update Inventory:**
+```bash
+# Edit inventory/hosts with your EC2 details
+nano control_server_files/inventory/hosts
+
+# Replace with your actual values:
+YOUR_EC2_IP_ADDRESS ansible_user=ec2-user ansible_ssh_private_key_file=/path/to/your-key.pem
+```
+
+### 3. **Deployment**
 
 ```bash
+# Navigate to project directory
+cd control_server_files/
+
 # Test connectivity
-./deploy.sh ping
+./deploy_noteapp.sh ping
 
-# Full deployment (recommended)
-./deploy.sh deploy
+# Full deployment
+./deploy_noteapp.sh deploy
 
-# Or with verbose output
-./deploy.sh deploy -v
+# Check deployment status
+./deploy_noteapp.sh status
 ```
 
-### 3. Verify Deployment
+### 4. **Access Application**
 
+Open your browser and navigate to:
+```
+http://YOUR_EC2_IP_ADDRESS
+```
+
+## 📁 Project Structure
+
+```
+control_server_files/
+├── site.yml                    # Main Ansible playbook
+├── deploy_noteapp.sh           # Deployment automation script
+├── inventory/
+│   └── hosts                   # EC2 instance configuration
+├── ansible.cfg                 # Ansible settings
+├── roles/
+│   ├── common/                 # System setup role
+│   │   ├── tasks/main.yml
+│   │   └── handlers/main.yml
+│   ├── database/               # SQLite setup role
+│   │   ├── tasks/main.yml
+│   │   └── templates/
+│   │       └── init_db.sql.j2
+│   ├── webapp/                 # Flask application role
+│   │   ├── tasks/main.yml
+│   │   ├── handlers/main.yml
+│   │   └── templates/
+│   │       ├── app.py.j2
+│   │       ├── requirements.txt.j2
+│   │       ├── noteapp.service.j2
+│   │       ├── noteapp.conf.j2
+│   │       └── app.wsgi.j2
+│   └── backup/                 # Backup strategy role
+│       ├── tasks/main.yml
+│       └── templates/
+│           ├── backup_database.sh.j2
+│           ├── backup_application.sh.j2
+│           ├── restore_backup.sh.j2
+│           └── noteapp_logrotate.j2
+└── README.md                   # This documentation
+```
+
+## 🛠️ Deployment Commands
+
+### **Core Commands**
 ```bash
+# Full deployment (installs everything)
+./deploy_noteapp.sh deploy
+
+# Dry-run (see what would change)
+./deploy_noteapp.sh check
+
+# Test EC2 connectivity
+./deploy_noteapp.sh ping
+
 # Check application status
-./deploy.sh status
-
-# View application logs  
-./deploy.sh logs
-
-# Test the application
-curl http://3.221.163.59:5000
+./deploy_noteapp.sh status
 ```
 
-## 📖 Deployment Commands
-
-### Core Deployment Commands
-
+### **Component-Specific Deployment**
 ```bash
-# Full deployment (database + web server)
-./deploy.sh deploy
+# System setup only
+./deploy_noteapp.sh setup
 
-# Deploy only database server
-./deploy.sh db-only
+# Database setup only  
+./deploy_noteapp.sh database
 
-# Deploy only web server
-./deploy.sh web-only
+# Web application only
+./deploy_noteapp.sh webapp
 
-# Dry-run deployment (check what would change)
-./deploy.sh check
+# Backup system only
+./deploy_noteapp.sh backup
 ```
 
-### Management Commands
-
+### **Verbose Output**
 ```bash
-# Test server connectivity
-./deploy.sh ping
+# Standard verbose
+./deploy_noteapp.sh deploy -v
 
-# Initialize/setup database tables
-./deploy.sh setup-db
-
-# Restart application service
-./deploy.sh restart-app
-
-# Check application status
-./deploy.sh status
-
-# View application logs (last 50 lines)
-./deploy.sh logs
+# Extra verbose (debug)
+./deploy_noteapp.sh deploy -vv
 ```
 
-### Advanced Options
+## 🗄️ Database Schema
 
+The SQLite database contains a simple `notes` table:
+
+```sql
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**Sample Data:**
+```
+ID | Content                                      | Timestamp
+---|----------------------------------------------|-------------------
+1  | Don't forget to review the IAM policy...     | 2024-12-01 21:15:07
+2  | Meeting notes from DevOps discussion        | 2024-12-01 21:20:15
+```
+
+## 📦 Backup System
+
+### **Automated Backups**
+- **Database**: Daily at 2:00 AM (retains 7 days)
+- **Application**: Weekly on Sunday at 3:30 AM (retains 4 weeks)
+- **Logs**: Daily rotation (retains 30 days)
+
+### **Manual Backup Commands**
 ```bash
-# Verbose output
-./deploy.sh deploy -v
+# SSH to your EC2 instance
+ssh -i your-key.pem ec2-user@YOUR_EC2_IP
 
-# Extra verbose output
-./deploy.sh deploy -vv
+# Manual database backup
+/opt/noteapp/backups/backup_database.sh
 
-# Use custom inventory
-./deploy.sh deploy -i custom_inventory
+# Manual application backup
+/opt/noteapp/backups/backup_application.sh
 
-# Run specific tags only
-./deploy.sh deploy --tags database
-
-# Skip specific tags
-./deploy.sh deploy --skip-tags web
+# Check backup status
+/opt/noteapp/backups/check_backup_status.sh
 ```
 
-## ⚙️ Configuration
+### **Restore Procedures**
+```bash
+# Restore latest database backup
+/opt/noteapp/backups/restore_backup.sh database latest
 
-### Variables (vars/main.yml)
+# Restore specific database backup
+/opt/noteapp/backups/restore_backup.sh database notes_backup_20241201_120000.db
 
-Key configuration options you can customize:
-
-```yaml
-# Application Settings
-app_port: 5000
-git_repo_url: "https://github.com/AmrDabour/ansible-project.git"
-git_branch: "master"
-
-# Database Settings
-mysql_root_password: "SecureRootPassword123!"
-db_name: "simple_notes"
-db_user: "notes_user"
-db_password: "notes_password"
-
-# Performance Settings
-gunicorn_workers: 3
-gunicorn_timeout: 30
+# Restore latest application backup
+/opt/noteapp/backups/restore_backup.sh application latest
 ```
 
-### Inventory Configuration
+## 🔧 Application Management
 
-Update `hosts` or `inventory.yml` to match your servers:
+### **Service Management**
+```bash
+# Check service status
+sudo systemctl status noteapp httpd
 
-```ini
-# hosts file format
-[web]
-YOUR_WEB_SERVER_IP ansible_user=ec2-user ansible_ssh_private_key_file=/path/to/key.pem
+# Restart services
+sudo systemctl restart noteapp httpd
 
-[db]  
-YOUR_DB_SERVER_IP ansible_user=ec2-user ansible_ssh_private_key_file=/path/to/key.pem
+# View logs
+sudo journalctl -u noteapp -f
 ```
 
-## 🔧 Customization Examples
+### **Application Logs**
+```bash
+# Application logs
+tail -f /opt/noteapp/logs/app.log
 
-### 1. Change Application Port
+# Apache logs
+tail -f /opt/noteapp/logs/apache_access.log
+tail -f /opt/noteapp/logs/apache_error.log
 
-```yaml
-# In vars/main.yml
-app_port: 8080
+# Backup logs
+tail -f /opt/noteapp/logs/backup.log
 ```
 
-### 2. Use Different Git Branch
+### **Database Access**
+```bash
+# Connect to SQLite database
+sqlite3 /opt/noteapp/database/notes.db
 
-```yaml
-# In vars/main.yml
-git_branch: "development"
-```
-
-### 3. Enable SSL
-
-```yaml
-# In vars/main.yml
-ssl_enabled: true
-ssl_cert_path: "/etc/ssl/certs/app.crt"
-ssl_key_path: "/etc/ssl/private/app.key"
-```
-
-### 4. Change Database Password
-
-```yaml
-# In vars/main.yml
-mysql_root_password: "YourNewSecurePassword"
-db_password: "YourAppPassword"
+# Common queries
+sqlite> .tables
+sqlite> SELECT * FROM notes ORDER BY timestamp DESC LIMIT 10;
+sqlite> .quit
 ```
 
 ## 🛠️ Troubleshooting
 
-### Common Issues
+### **Common Issues**
 
-**1. SSH Connection Failed**
+**1. EC2 Connection Failed**
 ```bash
-# Test SSH manually
-ssh -i /path/to/ansible.pem ec2-user@SERVER_IP
+# Test manual SSH connection
+ssh -i your-key.pem ec2-user@YOUR_EC2_IP
 
-# Check SSH key permissions
-chmod 600 /path/to/ansible.pem
+# Check security groups allow SSH (port 22)
+# Verify key file permissions: chmod 600 your-key.pem
 ```
 
-**2. Database Connection Failed**
+**2. Application Not Accessible**
 ```bash
-# Check MariaDB status on DB server
-ssh -i ansible.pem ec2-user@DB_SERVER_IP
-sudo systemctl status mariadb
+# Check if services are running
+./deploy_noteapp.sh status
 
-# Test database connection from web server
-mysql -h DB_SERVER_IP -u notes_user -p
+# Verify firewall rules
+sudo firewall-cmd --list-all
+
+# Check if port 80 is open in EC2 security groups
 ```
 
-**3. Application Not Starting**
+**3. Database Issues**
 ```bash
-# Check service status
-./deploy.sh status
+# Check database file exists
+ls -la /opt/noteapp/database/notes.db
 
-# View detailed logs
-./deploy.sh logs
+# Verify permissions
+sudo chown webapp:webapp /opt/noteapp/database/notes.db
 
-# Restart application
-./deploy.sh restart-app
+# Test database connection
+sqlite3 /opt/noteapp/database/notes.db "SELECT COUNT(*) FROM notes;"
 ```
 
-**4. Firewall Issues**
+**4. Ansible Deployment Issues**
 ```bash
-# Check firewall status (on target servers)
-sudo firewall-cmd --list-all     # RHEL/CentOS
-sudo ufw status                  # Ubuntu
+# Run in check mode to see what would change
+./deploy_noteapp.sh check -vv
+
+# Test connectivity
+./deploy_noteapp.sh ping
+
+# Check Ansible inventory
+ansible-inventory -i inventory/hosts --list
 ```
 
-### Debug Mode
-
-Run deployment in check mode to see what would change:
-
+### **Health Checks**
 ```bash
-./deploy.sh check -vv
+# Application health endpoint
+curl http://YOUR_EC2_IP/health
+
+# Expected response:
+# {"status": "healthy", "database": "connected"}
 ```
 
-### Manual Verification
-
+### **Log Analysis**
 ```bash
-# Check if application is running
-curl http://WEB_SERVER_IP:5000
+# Recent application errors
+sudo journalctl -u noteapp --since "1 hour ago"
 
-# Check database connectivity
-mysql -h DB_SERVER_IP -u notes_user -p simple_notes
+# Apache error logs
+sudo tail -f /var/log/httpd/error_log
+
+# System messages
+sudo tail -f /var/log/messages
 ```
 
-## 📊 Monitoring & Maintenance
+## 🔒 Security Features
 
-### Application Health Check
+### **Application Security**
+- **Input Validation**: SQL injection prevention
+- **HTTP Security Headers**: XSS protection, content type sniffing
+- **SELinux Integration**: Security context management
+- **Service Isolation**: Dedicated user and permissions
 
+### **Infrastructure Security**
+- **Firewall Rules**: Only SSH (22) and HTTP (80) open
+- **User Separation**: Dedicated application user
+- **File Permissions**: Restricted access to sensitive files
+- **Log Monitoring**: Comprehensive logging and rotation
+
+## 📊 Performance & Monitoring
+
+### **Key Metrics to Monitor**
+- **Application Response Time**: `/health` endpoint
+- **Database Size**: SQLite file growth
+- **Log File Sizes**: Disk space usage
+- **Backup Success**: Daily/weekly backup status
+
+### **Monitoring Commands**
 ```bash
-# Automated health check
-./deploy.sh status
+# System resources
+htop
+df -h
 
-# Manual verification
-curl -f http://3.221.163.59:5000 && echo "✅ App is healthy"
+# Application metrics
+curl -s http://YOUR_EC2_IP/health | python3 -m json.tool
+
+# Service status
+systemctl is-active noteapp httpd
 ```
 
-### Service Management
+## 🚀 Next Steps & Enhancements
 
-```bash
-# Restart application
-sudo systemctl restart simple-note-app
+### **Potential Improvements**
+1. **HTTPS Support**: SSL certificate integration
+2. **Load Balancing**: Multiple EC2 instances
+3. **Database Migration**: PostgreSQL or RDS
+4. **Containerization**: Docker deployment
+5. **CI/CD Pipeline**: Automated deployments
+6. **Monitoring**: CloudWatch integration
+7. **Scaling**: Auto Scaling Groups
 
-# Check service status
-sudo systemctl status simple-note-app
-
-# View service logs
-sudo journalctl -u simple-note-app -f
-```
-
-### Database Maintenance
-
-```bash
-# Connect to database
-mysql -h 35.175.123.232 -u notes_user -p simple_notes
-
-# Check database status
-SHOW TABLES;
-SELECT COUNT(*) FROM notes;
-```
-
-## 🔒 Security Considerations
-
-### 1. SSH Keys
-- Ensure SSH private keys have proper permissions (600)
-- Use different keys for different environments
-- Rotate keys regularly
-
-### 2. Database Security
-- Change default passwords in `vars/main.yml`
-- Use strong passwords (minimum 12 characters)
-- Restrict database access to application servers only
-
-### 3. Firewall Rules
-- Only necessary ports are opened (3306 for DB, 5000 for web)
-- Consider using VPN or private networks for database connections
-
-### 4. Application Security
-- Update `secret_key` in `vars/main.yml`
-- Consider enabling SSL for production use
-- Regular security updates via package management
-
-## 🚀 Production Deployment Checklist
-
-- [ ] Update all passwords in `vars/main.yml`
-- [ ] Configure proper SSL certificates
-- [ ] Set up monitoring and alerting
-- [ ] Configure automated backups
-- [ ] Test disaster recovery procedures
-- [ ] Update firewall rules for production
-- [ ] Configure log rotation
-- [ ] Set up proper DNS records
-
-## 📞 Support & Troubleshooting
-
-### Log Locations
-
-- **Application Logs**: `/opt/simple-note-app/logs/app.log`
-- **Service Logs**: `journalctl -u simple-note-app`
-- **Database Logs**: `/var/log/mariadb/mariadb.log`
-- **Ansible Logs**: Set `log_path` in `ansible.cfg`
-
-### Useful Commands
-
-```bash
-# Full system check
-./deploy.sh ping && ./deploy.sh status
-
-# Redeploy after code changes
-./deploy.sh web-only
-
-# Database maintenance
-./deploy.sh setup-db
-
-# Emergency restart
-./deploy.sh restart-app
-```
+### **Advanced Features**
+- User authentication and authorization
+- Note categories and tags
+- Search functionality
+- Export capabilities
+- Real-time collaboration
 
 ---
 
+## 📞 Support
+
+### **Getting Help**
+1. **Check Logs**: Application and system logs for errors
+2. **Run Diagnostics**: Use `./deploy_noteapp.sh status` 
+3. **Verify Configuration**: Ensure EC2 settings are correct
+4. **Test Components**: Use individual role deployment
+
+### **Project Submission Checklist**
+- [ ] EC2 instance created (t2.micro, Amazon Linux)
+- [ ] Security groups configured (SSH:22, HTTP:80)
+- [ ] Application deployed via Ansible roles
+- [ ] SQLite database functional
+- [ ] Notes can be created and displayed
+- [ ] Backup strategy implemented
+- [ ] Documentation complete
+
+---
+
+**Project Version**: 1.0  
 **Last Updated**: December 1, 2024  
-**Version**: 1.0  
-**Supported OS**: RHEL/CentOS 7+, Ubuntu 18.04+, Amazon Linux 2 
+**Compatible With**: Amazon Linux 2, Ansible 2.9+ 

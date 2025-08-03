@@ -1,0 +1,21 @@
+---
+# WebApp Role Handlers
+
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
+- name: restart noteapp
+  systemd:
+    name: noteapp
+    state: restarted
+
+- name: restart httpd
+  systemd:
+    name: httpd
+    state: restarted
+
+- name: reload httpd
+  systemd:
+    name: httpd
+    state: reloaded 

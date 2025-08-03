@@ -1,0 +1,81 @@
+#!/bin/bash
+# SQLite Database Backup Script for Note-Taking App
+# Automated backup of SQLite database with retention policy
+
+set -e
+
+# Configuration
+DB_PATH="{{ sqlite_db_path }}"
+BACKUP_DIR="{{ app_dir }}/backups/database"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_FILE="notes_backup_${TIMESTAMP}.db"
+BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILE}"
+LOG_FILE="{{ app_dir }}/logs/backup.log"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Logging function
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
+    echo -e "$1"
+}
+
+# Check if database exists
+if [ ! -f "$DB_PATH" ]; then
+    log_message "${RED}[ERROR] Database not found at: $DB_PATH${NC}"
+    exit 1
+fi
+
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Create database backup
+log_message "${YELLOW}[INFO] Starting database backup...${NC}"
+
+# Use SQLite backup command for consistent backup
+sqlite3 "$DB_PATH" ".backup $BACKUP_PATH"
+
+if [ $? -eq 0 ]; then
+    log_message "${GREEN}[SUCCESS] Database backup created: $BACKUP_FILE${NC}"
+    
+    # Get backup size
+    BACKUP_SIZE=$(du -h "$BACKUP_PATH" | cut -f1)
+    log_message "${GREEN}[INFO] Backup size: $BACKUP_SIZE${NC}"
+    
+    # Verify backup integrity
+    if sqlite3 "$BACKUP_PATH" "PRAGMA integrity_check;" | grep -q "ok"; then
+        log_message "${GREEN}[SUCCESS] Backup integrity verified${NC}"
+    else
+        log_message "${RED}[ERROR] Backup integrity check failed${NC}"
+        exit 1
+    fi
+else
+    log_message "${RED}[ERROR] Database backup failed${NC}"
+    exit 1
+fi
+
+# Cleanup old backups (keep last 7 days)
+log_message "${YELLOW}[INFO] Cleaning up old backups...${NC}"
+find "$BACKUP_DIR" -name "notes_backup_*.db" -type f -mtime +7 -delete
+
+# Count remaining backups
+BACKUP_COUNT=$(find "$BACKUP_DIR" -name "notes_backup_*.db" -type f | wc -l)
+log_message "${GREEN}[INFO] Total backups retained: $BACKUP_COUNT${NC}"
+
+# Create backup summary
+cat > "${BACKUP_DIR}/latest_backup_info.txt" << EOF
+Latest Backup Information
+========================
+Backup File: $BACKUP_FILE
+Backup Date: $(date)
+Backup Size: $BACKUP_SIZE
+Database Path: $DB_PATH
+Total Backups: $BACKUP_COUNT
+Status: SUCCESS
+EOF
+
+log_message "${GREEN}[COMPLETE] Database backup completed successfully${NC}" 

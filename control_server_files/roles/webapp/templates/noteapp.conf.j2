@@ -1,0 +1,31 @@
+# Note-Taking App Apache Configuration
+LoadModule wsgi_module modules/mod_wsgi.so
+
+<VirtualHost *:80>
+    ServerName {{ ansible_default_ipv4.address }}
+    DocumentRoot {{ app_dir }}/app
+    
+    WSGIDaemonProcess noteapp python-path={{ app_dir }}/app user={{ app_user }} group={{ app_user }}
+    WSGIProcessGroup noteapp
+    WSGIScriptAlias / {{ app_dir }}/app/app.wsgi
+    
+    <Directory {{ app_dir }}/app>
+        WSGIApplicationGroup %{GLOBAL}
+        Require all granted
+    </Directory>
+    
+    # Static files (if needed)
+    Alias /static {{ app_dir }}/app/static
+    <Directory {{ app_dir }}/app/static>
+        Require all granted
+    </Directory>
+    
+    # Logging
+    ErrorLog {{ app_dir }}/logs/apache_error.log
+    CustomLog {{ app_dir }}/logs/apache_access.log combined
+    
+    # Security headers
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</VirtualHost> 

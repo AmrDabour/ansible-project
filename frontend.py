@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from flask import Flask, render_template_string, request, jsonify
-import mysql.connector
+import sqlite3
 from datetime import datetime
 import os
 
@@ -16,25 +16,49 @@ except ImportError:
 app = Flask(__name__)
 app.secret_key = "simple_notes_secret_key_2024"
 
-# Database configuration
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "user": os.getenv("DB_USER", "notes_user"),
-    "password": os.getenv("DB_PASSWORD", "notes_password"),
-    "database": os.getenv("DB_NAME", "simple_notes"),
-    "port": int(os.getenv("DB_PORT", 3306)),
-}
+# Database configuration for SQLite
+DATABASE_PATH = os.getenv("DB_PATH", "notes.db")
 
 
 # Database connection helper
 def get_db_connection():
     """Get database connection"""
     try:
-        conn = mysql.connector.connect(**DB_CONFIG)
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
         return conn
-    except mysql.connector.Error as err:
+    except sqlite3.Error as err:
         print(f"Database connection error: {err}")
         return None
+
+
+# Initialize database
+def init_database():
+    """Initialize SQLite database with notes table"""
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    author TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """
+            )
+            conn.commit()
+            print("✅ Database initialized successfully!")
+        except sqlite3.Error as err:
+            print(f"Database initialization error: {err}")
+        finally:
+            conn.close()
+    else:
+        print("❌ Failed to initialize database!")
 
 
 # HTML Template with embedded CSS and JavaScript
@@ -157,19 +181,28 @@ HTML_TEMPLATE = """
         }
 
         .note-card {
-            background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
+            background: linear-gradient(145deg, 
+                rgba(255, 255, 255, 0.1), 
+                rgba(255, 255, 255, 0.05),
+                rgba(255, 255, 255, 0.02)
+            );
             border-radius: 20px;
             padding: 25px;
             margin: 15px;
             box-shadow: 
                 0 8px 32px rgba(0, 0, 0, 0.6),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.1),
                 0 0 20px rgba(102, 126, 234, 0.3);
-            backdrop-filter: blur(15px);
-            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-top: 1px solid rgba(255, 255, 255, 0.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             position: absolute;
             cursor: move;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+                        z-index 0s, transform 0.2s ease;
             min-width: 300px;
             max-width: 380px;
             word-wrap: break-word;
@@ -186,19 +219,35 @@ HTML_TEMPLATE = """
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(45deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.3) 0%, 
+                rgba(255, 255, 255, 0.1) 20%, 
+                transparent 40%, 
+                transparent 60%, 
+                rgba(102, 126, 234, 0.05) 80%, 
+                rgba(102, 126, 234, 0.1) 100%
+            );
             opacity: 0;
             transition: opacity 0.3s ease;
             pointer-events: none;
+            border-radius: 20px;
         }
 
         .note-card:hover {
             transform: translateY(-10px) scale(1.02);
             box-shadow: 
                 0 20px 60px rgba(0, 0, 0, 0.8),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 1px 2px rgba(255, 255, 255, 0.4),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.15),
                 0 0 40px rgba(102, 126, 234, 0.6);
-            border: 1px solid rgba(102, 126, 234, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            background: linear-gradient(145deg, 
+                rgba(255, 255, 255, 0.15), 
+                rgba(255, 255, 255, 0.08),
+                rgba(255, 255, 255, 0.04)
+            );
         }
 
         .note-card:hover::before {
@@ -209,9 +258,18 @@ HTML_TEMPLATE = """
             transform: rotate(8deg) scale(1.08);
             box-shadow: 
                 0 25px 80px rgba(0, 0, 0, 0.9),
+                inset 0 2px 4px rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2),
                 0 0 60px rgba(102, 126, 234, 0.8);
             z-index: 1000;
-            border: 2px solid rgba(102, 126, 234, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-top: 2px solid rgba(255, 255, 255, 0.7);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(145deg, 
+                rgba(255, 255, 255, 0.2), 
+                rgba(255, 255, 255, 0.1),
+                rgba(255, 255, 255, 0.05)
+            );
             animation: pulse-glow 0.8s ease-in-out;
         }
 
@@ -372,7 +430,11 @@ HTML_TEMPLATE = """
         }
 
         .modal-content {
-            background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
+            background: linear-gradient(145deg, 
+                rgba(255, 255, 255, 0.12), 
+                rgba(255, 255, 255, 0.08),
+                rgba(255, 255, 255, 0.04)
+            );
             margin: 5% auto;
             padding: 40px;
             border-radius: 25px;
@@ -380,9 +442,14 @@ HTML_TEMPLATE = """
             max-width: 550px;
             box-shadow: 
                 0 25px 80px rgba(0, 0, 0, 0.8),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                inset 0 1px 2px rgba(255, 255, 255, 0.3),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.1),
                 0 0 40px rgba(102, 126, 234, 0.4);
-            border: 1px solid rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             color: #ffffff;
         }
@@ -411,10 +478,18 @@ HTML_TEMPLATE = """
         .form-group textarea {
             width: 100%;
             padding: 15px;
-            border: 2px solid rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 15px;
             font-size: 14px;
-            background: rgba(0, 0, 0, 0.3);
+            background: linear-gradient(145deg, 
+                rgba(255, 255, 255, 0.08), 
+                rgba(255, 255, 255, 0.04),
+                rgba(255, 255, 255, 0.02)
+            );
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             color: #ffffff;
             transition: all 0.3s ease;
         }
@@ -427,11 +502,18 @@ HTML_TEMPLATE = """
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 
                 0 0 20px rgba(102, 126, 234, 0.4),
-                inset 0 0 10px rgba(102, 126, 234, 0.1);
-            background: rgba(102, 126, 234, 0.1);
+                inset 0 1px 2px rgba(255, 255, 255, 0.2),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.1);
+            background: linear-gradient(145deg, 
+                rgba(255, 255, 255, 0.12), 
+                rgba(255, 255, 255, 0.06),
+                rgba(255, 255, 255, 0.03)
+            );
         }
 
         .form-group textarea {
@@ -478,6 +560,18 @@ HTML_TEMPLATE = """
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-10px); }
+        }
+
+        /* Top note card highlight */
+        .note-card.top-card {
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.6),
+                inset 0 1px 1px rgba(255, 255, 255, 0.4),
+                inset 0 -1px 1px rgba(0, 0, 0, 0.1),
+                0 0 30px rgba(102, 126, 234, 0.5),
+                0 0 60px rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
         }
 
         .floating-btn:hover {
@@ -554,6 +648,9 @@ HTML_TEMPLATE = """
         let polygons = [];
         let mouse = { x: 0, y: 0 };
         let animationId;
+
+        // Z-index management for note cards
+        let highestZIndex = 100;
 
         // Load notes on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -956,8 +1053,9 @@ HTML_TEMPLATE = """
                 html += `
                     <div class="note-card" 
                          id="note-${note.id}" 
-                         style="left: ${left}px; top: ${top}px;"
+                         style="left: ${left}px; top: ${top}px; z-index: ${100 + index};"
                          onmousedown="startDrag(event, ${note.id})"
+                         onclick="bringToFront(this)"
                          ondragstart="return false;">
                         <div class="note-header">
                             <div>
@@ -977,6 +1075,46 @@ HTML_TEMPLATE = """
             });
             
             container.innerHTML = html;
+            updateHighestZIndex(); // Update z-index tracking
+            
+            // Set the most recent note (first in the list) as the top card initially
+            if (notesToShow.length > 0) {
+                const firstCard = document.getElementById(`note-${notesToShow[0].id}`);
+                if (firstCard) {
+                    bringToFront(firstCard);
+                }
+            }
+        }
+
+        // Bring note card to front
+        function bringToFront(noteElement) {
+            // Remove top-card class from all cards
+            document.querySelectorAll('.note-card').forEach(card => {
+                card.classList.remove('top-card');
+            });
+            
+            highestZIndex += 1;
+            noteElement.style.zIndex = highestZIndex;
+            
+            // Mark this card as the top card
+            noteElement.classList.add('top-card');
+            
+            // Add subtle visual feedback
+            noteElement.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                noteElement.style.transform = '';
+            }, 150);
+        }
+
+        // Update highest z-index when notes are loaded
+        function updateHighestZIndex() {
+            const noteCards = document.querySelectorAll('.note-card');
+            noteCards.forEach(card => {
+                const zIndex = parseInt(card.style.zIndex) || 100;
+                if (zIndex > highestZIndex) {
+                    highestZIndex = zIndex;
+                }
+            });
         }
 
         // Start dragging a note
@@ -984,6 +1122,9 @@ HTML_TEMPLATE = """
             e.preventDefault();
             isDragging = true;
             currentNote = document.getElementById(`note-${noteId}`);
+            
+            // Bring the card to front when starting to drag
+            bringToFront(currentNote);
             
             const rect = currentNote.getBoundingClientRect();
             offset.x = e.clientX - rect.left;
@@ -1055,6 +1196,10 @@ HTML_TEMPLATE = """
         function viewNote(id) {
             const note = notes.find(n => n.id === id);
             if (note) {
+                // Bring the note card to front when viewing
+                const noteCard = document.getElementById(`note-${id}`);
+                if (noteCard) bringToFront(noteCard);
+                
                 alert(`📄 ${note.title}\n\n👤 Author: ${note.author}\n📅 Created: ${formatDate(note.created_at)}\n\n📝 Content:\n${note.content}`);
             }
         }
@@ -1063,6 +1208,10 @@ HTML_TEMPLATE = """
         function editNote(id) {
             const note = notes.find(n => n.id === id);
             if (note) {
+                // Bring the note card to front when editing
+                const noteCard = document.getElementById(`note-${id}`);
+                if (noteCard) bringToFront(noteCard);
+                
                 document.getElementById('modalTitle').textContent = '✏️ Edit Note';
                 document.getElementById('noteId').value = note.id;
                 document.getElementById('title').value = note.title;
@@ -1177,19 +1326,25 @@ def get_notes():
         return jsonify({"error": "Database connection failed"}), 500
 
     try:
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM notes ORDER BY created_at DESC")
-        notes = cursor.fetchall()
+        notes_data = cursor.fetchall()
 
-        # Convert datetime objects to strings for JSON serialization
-        for note in notes:
-            if note["created_at"]:
-                note["created_at"] = note["created_at"].isoformat()
-            if note["updated_at"]:
-                note["updated_at"] = note["updated_at"].isoformat()
+        # Convert to list of dictionaries for JSON serialization
+        notes_list = []
+        for note in notes_data:
+            note_dict = {
+                "id": note[0],
+                "title": note[1],
+                "content": note[2],
+                "author": note[3],
+                "created_at": note[4],
+                "updated_at": note[5],
+            }
+            notes_list.append(note_dict)
 
-        return jsonify(notes)
-    except mysql.connector.Error as err:
+        return jsonify(notes_list)
+    except sqlite3.Error as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1212,7 +1367,7 @@ def create_note():
         cursor = conn.cursor()
         query = """
         INSERT INTO notes (title, content, author, created_at) 
-        VALUES (%s, %s, %s, %s)
+        VALUES (?, ?, ?, ?)
         """
         cursor.execute(
             query, (data["title"], data["content"], data["author"], datetime.now())
@@ -1221,7 +1376,7 @@ def create_note():
 
         note_id = cursor.lastrowid
         return jsonify({"id": note_id, "message": "Note created successfully"}), 201
-    except mysql.connector.Error as err:
+    except sqlite3.Error as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1244,8 +1399,8 @@ def update_note(note_id):
         cursor = conn.cursor()
         query = """
         UPDATE notes 
-        SET title = %s, content = %s, author = %s, updated_at = %s
-        WHERE id = %s
+        SET title = ?, content = ?, author = ?, updated_at = ?
+        WHERE id = ?
         """
         cursor.execute(
             query,
@@ -1257,7 +1412,7 @@ def update_note(note_id):
             return jsonify({"error": "Note not found"}), 404
 
         return jsonify({"message": "Note updated successfully"})
-    except mysql.connector.Error as err:
+    except sqlite3.Error as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1273,14 +1428,14 @@ def delete_note(note_id):
 
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM notes WHERE id = %s", (note_id,))
+        cursor.execute("DELETE FROM notes WHERE id = ?", (note_id,))
         conn.commit()
 
         if cursor.rowcount == 0:
             return jsonify({"error": "Note not found"}), 404
 
         return jsonify({"message": "Note deleted successfully"})
-    except mysql.connector.Error as err:
+    except sqlite3.Error as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1300,25 +1455,31 @@ def search_notes():
         return jsonify({"error": "Database connection failed"}), 500
 
     try:
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
         search_query = """
         SELECT * FROM notes 
-        WHERE title LIKE %s OR content LIKE %s OR author LIKE %s
+        WHERE title LIKE ? OR content LIKE ? OR author LIKE ?
         ORDER BY created_at DESC
         """
         search_pattern = f"%{query}%"
         cursor.execute(search_query, (search_pattern, search_pattern, search_pattern))
-        notes = cursor.fetchall()
+        notes_data = cursor.fetchall()
 
-        # Convert datetime objects to strings for JSON serialization
-        for note in notes:
-            if note["created_at"]:
-                note["created_at"] = note["created_at"].isoformat()
-            if note["updated_at"]:
-                note["updated_at"] = note["updated_at"].isoformat()
+        # Convert to list of dictionaries for JSON serialization
+        notes_list = []
+        for note in notes_data:
+            note_dict = {
+                "id": note[0],
+                "title": note[1],
+                "content": note[2],
+                "author": note[3],
+                "created_at": note[4],
+                "updated_at": note[5],
+            }
+            notes_list.append(note_dict)
 
-        return jsonify(notes)
-    except mysql.connector.Error as err:
+        return jsonify(notes_list)
+    except sqlite3.Error as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1326,24 +1487,50 @@ def search_notes():
 
 
 if __name__ == "__main__":
+    # Initialize database
+    init_database()
+
+    # Get port from environment or default to 80
+    port = int(os.getenv("FLASK_PORT", 80))
+
     # Test database connection on startup
     conn = get_db_connection()
     if conn:
         print("✅ Database connection successful!")
         conn.close()
         print("🚀 Starting Flask web server...")
-        print("🌐 Open your browser and go to: http://localhost:5000")
+        print(f"🌐 Open your browser and go to: http://localhost:{port}")
         print("🎯 Features:")
         print("   - Interactive floating note cards")
         print("   - Drag and drop notes anywhere")
         print("   - Real-time search")
         print("   - Add/Edit/Delete with beautiful modals")
         print("   - Responsive design")
-        app.run(debug=True, host="0.0.0.0", port=5000)
+        print("   - SQLite database for note storage")
+
+        if port == 80:
+            print("⚠️  Note: Running on port 80 requires administrator privileges")
+            print("   - On Linux/Mac: sudo python3 frontend.py")
+            print("   - On Windows: Run as Administrator")
+            print("   - Alternative: Set FLASK_PORT=8080 for non-privileged port")
+
+        try:
+            app.run(debug=True, host="0.0.0.0", port=port)
+        except PermissionError:
+            print("❌ Permission denied to bind to port 80!")
+            print("💡 Solutions:")
+            print("   1. Run with sudo: sudo python3 frontend.py")
+            print("   2. Use different port: FLASK_PORT=8080 python3 frontend.py")
+            print("   3. Deploy with Ansible for production (Apache handles port 80)")
+        except OSError as e:
+            if "Address already in use" in str(e):
+                print(f"❌ Port {port} is already in use!")
+                print("💡 Try a different port: FLASK_PORT=8080 python3 frontend.py")
+            else:
+                print(f"❌ Error starting server: {e}")
     else:
         print("❌ Database connection failed!")
         print("Please make sure:")
-        print("1. MariaDB service is running")
-        print("2. Database 'simple_notes' exists")
-        print("3. User 'notes_user' has proper permissions")
-        print("4. Run the setup script first: .\\quick_setup.ps1")
+        print("1. SQLite3 is installed and accessible")
+        print("2. Write permissions exist in the current directory")
+        print("3. Python sqlite3 module is available (built-in)")

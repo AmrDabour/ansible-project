@@ -1,0 +1,12 @@
+{{ app_dir }}/logs/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 644 {{ app_user }} {{ app_user }}
+    postrotate
+        systemctl reload noteapp.service > /dev/null 2>&1 || true
+    endscript
+} 
