@@ -1,8 +1,8 @@
 ---
-# Advanced Note-Taking App Deployment with Apache on Port 80
-# Production-ready Flask app with Apache mod_wsgi
+# Simple Note-Taking App Deployment
+# No roles, no templates, just the basics!
 
-- name: Deploy Advanced Note-Taking App on Port 80
+- name: Deploy Simple Note-Taking App
   hosts: noteapp_servers
   become: true
   gather_facts: true
@@ -12,49 +12,24 @@
     app_dir: "/opt/noteapp"
     
   tasks:
-    # 1. Install required packages including Apache and mod_wsgi
-    - name: Install Python, SQLite, Apache and essential packages
+    # 1. Install required packages
+    - name: Install Python, SQLite and essential packages
       yum:
         name:
           - python3
           - python3-pip
-          - python3-devel
           - sqlite
-          - httpd
-          - httpd-devel
-          - gcc
         state: present
       
-    # 2. Install mod_wsgi via pip
-    - name: Install mod_wsgi via pip
-      pip:
-        name: mod_wsgi
-        executable: pip3
-        
-    # 3. Configure mod_wsgi for Apache
-    - name: Configure mod_wsgi module
-      shell: mod_wsgi-express module-config
-      register: mod_wsgi_config
-      
-    - name: Create mod_wsgi configuration file
-      copy:
-        content: "{{ mod_wsgi_config.stdout }}"
-        dest: /etc/httpd/conf.modules.d/10-wsgi.conf
-        owner: root
-        group: root
-        mode: '0644'
-      notify: restart httpd
-      
-    # 4. Create application user
+    # 2. Create application user
     - name: Create application user
       user:
         name: "{{ app_user }}"
         system: true
         home: "{{ app_dir }}"
         create_home: false
-        shell: /bin/bash
         
-    # 5. Create application directory
+    # 3. Create application directory
     - name: Create application directory
       file:
         path: "{{ app_dir }}"
@@ -63,25 +38,16 @@
         group: "{{ app_user }}"
         mode: '0755'
         
-    # 6. Copy Python application file
+    # 4. Copy advanced Python application file
     - name: Copy advanced Python application
       copy:
-        src: app.py
-        dest: "{{ app_dir }}/app.py"
+        src: frontend.py
+        dest: "{{ app_dir }}/frontend.py"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
         mode: '0755'
         
-    # 7. Copy WSGI file
-    - name: Copy WSGI file
-      copy:
-        src: app.wsgi
-        dest: "{{ app_dir }}/app.wsgi"
-        owner: "{{ app_user }}"
-        group: "{{ app_user }}"
-        mode: '0755'
-        
-    # 8. Copy requirements file
+    # 5. Copy requirements file
     - name: Copy requirements.txt
       copy:
         src: requirements.txt
@@ -90,46 +56,37 @@
         group: "{{ app_user }}"
         mode: '0644'
         
-    # 9. Install Python requirements
+    # 6. Install Flask
     - name: Install Python requirements
       pip:
         requirements: "{{ app_dir }}/requirements.txt"
         executable: pip3
         
-    # 10. Create Apache virtual host configuration
-    - name: Create Apache virtual host configuration
+    # 7. Create systemd service file for advanced app
+    - name: Create systemd service file for advanced app
       copy:
         content: |
-          <VirtualHost *:80>
-              ServerName {{ ansible_default_ipv4.address }}
-              DocumentRoot {{ app_dir }}
-              
-              WSGIDaemonProcess noteapp user={{ app_user }} group={{ app_user }} threads=5 python-path={{ app_dir }}
-              WSGIProcessGroup noteapp
-              WSGIScriptAlias / {{ app_dir }}/app.wsgi
-              
-              <Directory {{ app_dir }}>
-                  WSGIApplicationGroup %{GLOBAL}
-                  Require all granted
-              </Directory>
-              
-              # Logging
-              ErrorLog /var/log/httpd/noteapp_error.log
-              CustomLog /var/log/httpd/noteapp_access.log combined
-              LogLevel info
-              
-              # Security headers
-              Header always set X-Content-Type-Options nosniff
-              Header always set X-Frame-Options DENY
-              Header always set X-XSS-Protection "1; mode=block"
-          </VirtualHost>
-        dest: /etc/httpd/conf.d/noteapp.conf
-        owner: root
-        group: root
+          [Unit]
+          Description=Advanced Note-Taking App
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          Environment=FLASK_PORT=80
+          Environment=DB_PATH={{ app_dir }}/notes.db
+          ExecStart=/usr/bin/python3 {{ app_dir }}/frontend.py
+          Restart=always
+          RestartSec=3
+          
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/noteapp.service
         mode: '0644'
-      notify: restart httpd
+      notify: reload systemd
       
-    # 11. Configure firewall for HTTP (port 80)
+    # 8. Configure firewall for port 80
     - name: Allow HTTP traffic on port 80
       firewalld:
         service: http
@@ -138,64 +95,43 @@
         immediate: true
       ignore_errors: true
       
-    # 12. Set SELinux context for application files
-    - name: Set SELinux context for application directory
-      sefcontext:
-        target: "{{ app_dir }}(/.*)?"
-        setype: httpd_exec_t
-        state: present
-      ignore_errors: true
-      
-    - name: Apply SELinux context
-      command: restorecon -R {{ app_dir }}
-      ignore_errors: true
-      
-    # 13. Start and enable Apache
-    - name: Start and enable Apache HTTP server
+    # 9. Start and enable service
+    - name: Start and enable noteapp service
       systemd:
-        name: httpd
+        name: noteapp
         state: started
         enabled: true
         daemon_reload: true
         
-    # 14. Check if Apache is serving the app
-    - name: Wait for Apache to start
+    # 10. Check if app is running on port 80
+    - name: Wait for application to start
       wait_for:
         port: 80
         delay: 5
         timeout: 30
       ignore_errors: true
       
-    # 15. Initialize database
-    - name: Initialize database by calling the app
-      uri:
-        url: "http://{{ ansible_default_ipv4.address }}/health"
-        method: GET
-      register: health_check
-      retries: 3
-      delay: 5
-      ignore_errors: true
-      
   handlers:
-    - name: restart httpd
+    - name: reload systemd
       systemd:
-        name: httpd
-        state: restarted
+        daemon_reload: true
         
   post_tasks:
     - name: Show deployment success
       debug:
         msg: |
-          🎉 Advanced Note-Taking App Deployed Successfully on Port 80!
+          🎉 Advanced Note-Taking App Deployed Successfully!
           
           ✅ Application URL: http://{{ ansible_default_ipv4.address }}
-          ✅ Advanced Features: Search, Categories, Statistics, Export, API
-          ✅ Database: SQLite at {{ app_dir }}/notes.db
-          ✅ Web Server: Apache with mod_wsgi
-          ✅ Logs: /var/log/httpd/noteapp_*.log
+          ✅ Features: Interactive UI, Drag & Drop Notes, Real-time Search
+          ✅ Database: SQLite at {{ app_dir }}/notes.db  
+          ✅ Service: sudo systemctl status noteapp
           
-          🚀 API Endpoints:
-          📊 Statistics: http://{{ ansible_default_ipv4.address }}/stats
-          📥 Export: http://{{ ansible_default_ipv4.address }}/export
-          🔍 Health: http://{{ ansible_default_ipv4.address }}/health
-          📱 API: http://{{ ansible_default_ipv4.address }}/api/notes 
+          🌟 Advanced Features:
+          - Interactive floating note cards
+          - Drag and drop interface
+          - Beautiful animations and effects
+          - Full CRUD operations via API
+          - Responsive design
+          
+          Test it now: curl http://{{ ansible_default_ipv4.address }} 

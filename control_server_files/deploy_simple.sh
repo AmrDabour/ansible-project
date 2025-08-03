@@ -9,8 +9,8 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo
-echo "🚀 Advanced Note-Taking App Deployment on Port 80"
-echo "=================================================="
+echo "🚀 Advanced Note-Taking App Deployment"
+echo "======================================="
 echo
 
 # Check if running from correct directory
@@ -29,7 +29,7 @@ else
 fi
 
 # Deploy application
-echo -e "${BLUE}[DEPLOY]${NC} Deploying Advanced Note-Taking App on Port 80..."
+echo -e "${BLUE}[DEPLOY]${NC} Deploying Simple Note-Taking App..."
 ansible-playbook -i inventory/hosts site.yml
 
 if [ $? -eq 0 ]; then
@@ -37,12 +37,8 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}🎉 Deployment Successful!${NC}"
     echo
     WEB_SERVER_IP=$(ansible-inventory -i inventory/hosts --list | grep -o '"[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*"' | tr -d '"' | head -1)
-    echo "🌐 Access your app: http://$WEB_SERVER_IP"
-    echo "🔧 Check Apache: ssh to server and run 'sudo systemctl status httpd'"
-    echo "📊 API Endpoints:"
-    echo "   - Statistics: http://$WEB_SERVER_IP/stats"
-    echo "   - Export: http://$WEB_SERVER_IP/export"
-    echo "   - Health: http://$WEB_SERVER_IP/health"
+    echo "🌐 Access your advanced app: http://$WEB_SERVER_IP"
+    echo "🔧 Check service: ssh to server and run 'sudo systemctl status noteapp'"
     echo
 else
     echo "❌ Deployment failed!"
