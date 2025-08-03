@@ -1,9 +1,9 @@
-# Note-Taking App Inventory - SQLite Version (Single Web Server)
-# SQLite is file-based, so database runs on web server
+# Note-Taking App Inventory - Single EC2 Instance Deployment
+# As per assignment requirements: ONE EC2 instance with SQLite
 
 [noteapp_servers]
-# Replace with your WEB SERVER IP (EC2 #2)
-YOUR_WEB_SERVER_IP ansible_user=ec2-user ansible_ssh_private_key_file=/path/to/your-key.pem
+# Web Server (agent01) - This will host both app and SQLite database
+3.221.163.59 ansible_user=ec2-user ansible_ssh_private_key_file=/home/ec2-user/Ansible.pem
 
 [noteapp_servers:vars]
 # Amazon Linux specific configurations
@@ -14,5 +14,8 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 app_environment=production
 deploy_version=latest
 
-# IMPORTANT: SQLite database will be created on the web server
-# Database server (EC2 #3) is not used with SQLite 
+# Project Notes:
+# - Assignment requires: "EC2 instance" (singular)
+# - SQLite database runs on same server as web application
+# - Database server (35.175.123.232) is NOT needed for this assignment
+# - This follows the assignment requirements exactly 
