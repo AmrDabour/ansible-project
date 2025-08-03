@@ -1,62 +1,127 @@
 ---
-# Note-Taking Web App Deployment - Main Playbook
-# DevOps Project: Deploy on Amazon Linux EC2 with SQLite
+# Simple Note-Taking App Deployment
+# No roles, no templates, just the basics!
 
-- name: Deploy Note-Taking Web Application
+- name: Deploy Simple Note-Taking App
   hosts: noteapp_servers
   become: true
   gather_facts: true
   
   vars:
-    app_name: "note-taking-app"
-    app_user: "webapp"
-    app_port: 80
+    app_user: "noteapp"
     app_dir: "/opt/noteapp"
-    sqlite_db_path: "{{ app_dir }}/database/notes.db"
     
-  roles:
-    - role: common
-      tags: ["common", "setup"]
+  tasks:
+    # 1. Install required packages
+    - name: Install Python, SQLite and essential packages
+      yum:
+        name:
+          - python3
+          - python3-pip
+          - sqlite
+        state: present
       
-    - role: database  
-      tags: ["database", "sqlite"]
-      
-    - role: webapp
-      tags: ["webapp", "application"]
-      
-    - role: backup
-      tags: ["backup", "maintenance"]
-
-  post_tasks:
-    - name: Display deployment information
-      debug:
-        msg: |
-          ==========================================
-          🚀 Note-Taking App Deployment Complete!
-          ==========================================
-          ✅ Application URL: http://{{ ansible_default_ipv4.address }}
-          ✅ Database: SQLite at {{ sqlite_db_path }}
-          ✅ Application User: {{ app_user }}
-          ✅ Application Directory: {{ app_dir }}
-          ✅ Backup Location: {{ app_dir }}/backups/
-          ==========================================
+    # 2. Create application user
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        system: true
+        home: "{{ app_dir }}"
+        create_home: false
+        
+    # 3. Create application directory
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+        
+    # 4. Copy Python application file
+    - name: Copy Python application
+      copy:
+        src: app.py
+        dest: "{{ app_dir }}/app.py"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+        
+    # 5. Copy requirements file
+    - name: Copy requirements.txt
+      copy:
+        src: requirements.txt
+        dest: "{{ app_dir }}/requirements.txt"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+        
+    # 6. Install Flask
+    - name: Install Python requirements
+      pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        executable: pip3
+        
+    # 7. Create systemd service file
+    - name: Create systemd service file
+      copy:
+        content: |
+          [Unit]
+          Description=Simple Note-Taking App
+          After=network.target
           
-    - name: Test application health
-      uri:
-        url: "http://{{ ansible_default_ipv4.address }}"
-        method: GET
-        status_code: 200
-      register: health_check
-      retries: 3
-      delay: 5
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          ExecStart=/usr/bin/python3 {{ app_dir }}/app.py
+          Restart=always
+          RestartSec=3
+          
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/noteapp.service
+        mode: '0644'
+      notify: reload systemd
+      
+    # 8. Configure firewall
+    - name: Allow HTTP traffic
+      firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: true
       ignore_errors: true
       
-    - name: Show health check result
-      debug:
-        msg: "✅ Application is healthy and responding"
-      when: health_check.status == 200
+    # 9. Start and enable service
+    - name: Start and enable noteapp service
+      systemd:
+        name: noteapp
+        state: started
+        enabled: true
+        daemon_reload: true
+        
+    # 10. Check if app is running
+    - name: Wait for application to start
+      wait_for:
+        port: 80
+        delay: 5
+        timeout: 30
+      ignore_errors: true
       
-    - name: Show health check failure
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: true
+        
+  post_tasks:
+    - name: Show deployment success
       debug:
-        msg: "❌ Application health check failed - please check logs"
-      when: health_check.status != 200 
+        msg: |
+          🎉 Simple Note-Taking App Deployed Successfully!
+          
+          ✅ Application URL: http://{{ ansible_default_ipv4.address }}
+          ✅ Database: SQLite at {{ app_dir }}/notes.db
+          ✅ Service: sudo systemctl status noteapp
+          
+          Test it now: curl http://{{ ansible_default_ipv4.address }} 
