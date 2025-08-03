@@ -1,15 +1,17 @@
-# 📝 Simple Note-Taking App - Ansible Deployment
+# 📝 Advanced Note-Taking App - Production Deployment
 
 ## 🎯 Project Overview
-Simple Flask web application for taking notes with SQLite database, deployed using Ansible on Amazon Linux EC2.
+Advanced Flask web application with modern UI, search, categories, statistics, and API endpoints. Deployed using Ansible on Amazon Linux EC2 with Apache mod_wsgi on port 80.
 
 ## ✅ Requirements Met
-- ✅ Python Flask web application
-- ✅ SQLite database for storing notes  
-- ✅ Simple interface for writing and viewing notes
-- ✅ Notes displayed with timestamps
+- ✅ Advanced Python Flask web application with modern UI
+- ✅ SQLite database with enhanced schema
+- ✅ Professional interface with Bootstrap 5 + FontAwesome
+- ✅ Notes with categories, search, and filtering
+- ✅ Real-time statistics and export functionality
+- ✅ RESTful API endpoints
+- ✅ Production deployment with Apache mod_wsgi on port 80
 - ✅ Deployed on Amazon Linux EC2 via Ansible
-- ✅ No complex templates or roles - just simple files
 
 ## 📁 Project Structure
 ```
@@ -41,42 +43,65 @@ chmod +x deploy_simple.sh
 ```
 
 ### 3. Access Application
-Open browser: `http://YOUR_WEB_SERVER_IP:8080`
+Open browser: `http://YOUR_WEB_SERVER_IP` (Port 80)
 
 ## 🛠️ What Gets Deployed
-- Python 3 + Flask installation
-- SQLite database setup
-- Simple note-taking web interface  
-- Systemd service for auto-start
-- Basic firewall configuration
+- Python 3 + Flask + Advanced libraries installation
+- Apache HTTP Server with mod_wsgi
+- SQLite database with enhanced schema
+- Advanced note-taking web interface with Bootstrap UI
+- Category-based note organization and search
+- Real-time statistics and export features
+- RESTful API endpoints
+- Production-grade security headers
+- Comprehensive logging system
 
 ## 🔧 Application Management
 ```bash
-# Check service status
-sudo systemctl status noteapp
+# Check Apache status
+sudo systemctl status httpd
 
-# View logs
-sudo journalctl -u noteapp -f
+# View application logs
+sudo tail -f /var/log/httpd/noteapp_access.log
+sudo tail -f /var/log/httpd/noteapp_error.log
 
-# Restart service
-sudo systemctl restart noteapp
+# Restart Apache
+sudo systemctl restart httpd
+
+# Test application health
+curl http://localhost/health
+
+# View statistics API
+curl http://localhost/stats
+
+# Export notes
+curl http://localhost/export
 
 # Manual backup
 sudo /opt/noteapp/backup.sh
 ```
 
-## 📊 Features
-- ✨ Write and save notes
-- 📅 Automatic timestamps
-- 📋 View all notes in chronological order  
-- 💾 SQLite database storage
-- 🔄 Auto-restart service
-- 📦 Simple backup system
+## 📊 Advanced Features
+- ✨ Create and organize notes with categories (Work, Personal, Ideas, Tasks)
+- 🔍 Real-time search and filtering capabilities
+- 📊 Live statistics dashboard (total notes, daily, weekly counts)
+- 📱 Responsive Bootstrap 5 UI with modern design
+- 🎨 Category-based color coding and badges
+- 📥 JSON export functionality for data portability
+- 🔗 RESTful API endpoints for integration
+- 🛡️ Production security headers and SELinux integration
+- 📝 Advanced note management (view, edit, delete)
+- 📈 Real-time metrics and analytics
+- 🎯 Sample data for immediate testing
 
-## 🏗️ Architecture
-- **Frontend**: Simple HTML form in Flask
-- **Backend**: Python Flask application
-- **Database**: SQLite (file-based)
-- **Server**: Amazon Linux with systemd service
+## 🏗️ Production Architecture
+- **Frontend**: Modern Bootstrap 5 UI with responsive design
+- **Backend**: Advanced Python Flask application with multiple endpoints
+- **Web Server**: Apache HTTP Server with mod_wsgi (Production ready)
+- **Database**: Enhanced SQLite with category support and indexing
+- **Server**: Amazon Linux with Apache on port 80
+- **Security**: SELinux integration, security headers, and firewall rules
+- **API**: RESTful endpoints for statistics, export, and health monitoring
+- **Monitoring**: Comprehensive logging and health checks
 
-No Apache, no complex templates, no roles - just the essentials! 🎯 
+Production-ready deployment with enterprise features! 🚀 
