@@ -72,14 +72,7 @@
     enabled: "{{ enable_service }}"
     state: "{{ 'restarted' if restart_service else 'started' }}"
         
-- name: Open firewall for HTTP traffic
-  firewalld:
-    port: "{{ item }}"
-    permanent: yes
-    state: enabled
-    immediate: yes
-  loop: "{{ firewall_ports }}"
-  ignore_errors: true
+-
       
 - name: Display service status
   systemd:
