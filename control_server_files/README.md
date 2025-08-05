@@ -1,6 +1,6 @@
-# Ansible Deployment for Note-Taking Web App
+# Ansible Role Deployment for Note-Taking Web App
 
-This directory contains Ansible configuration files to deploy a note-taking web application on AWS EC2.
+This directory contains Ansible configuration files and a **role** to deploy a note-taking web application on AWS EC2.
 
 ## Files Structure
 ```
@@ -8,36 +8,30 @@ control_server_files/
 ├── ansible.cfg          # Ansible configuration
 ├── hosts               # Inventory file with target servers
 ├── Ansible.pem         # SSH private key for EC2 access
-├── deploy_noteapp.yml  # Main deployment playbook
+├── deploy_noteapp.yml  # Traditional deployment playbook
+├── deploy_with_role.yml # NEW: Role-based deployment playbook
 ├── opposite.yml        # Cleanup playbook (removes everything)
 ├── verify_clean.yml    # Verify server is in clean state
 ├── vars.yml            # Single variables file with all configuration
+├── roles/              # Ansible Role Directory
+│   └── noteapp/        # Note App Role
+│       ├── tasks/      # Role tasks
+│       │   └── main.yml
+│       ├── vars/       # Role variables
+│       │   └── main.yml
+│       └── files/      # Role files
+│           └── setup_database.sh
 └── README.md          # This file
 ```
 
-## Configuration
+## Role-Based Deployment (Recommended)
 
-All configuration is now centralized in the single `vars.yml` file. Key settings:
-- Application Port: 5000 (configured for non-privileged access)
-- Target Server: 98.84.54.112
-- Application Directory: /opt/note_app
-- Service Name: noteapp
-
-To modify any settings, edit the `vars.yml` file.
-
-## Prerequisites
-1. AWS EC2 instance running Amazon Linux 2
-2. Security Group allowing ports 22 (SSH), 80 (HTTP), and 5000 (if needed)
-3. The EC2 instance should be accessible via the provided private key
-
-## Usage
-
-### 1. Test Connection First
+### Deploy using Ansible Role
 ```bash
-ansible-playbook test_connection.yml
+ansible-playbook deploy_with_role.yml
 ```
 
-### 2. Deploy the Application
+### Traditional Deployment (Alternative)
 ```bash
 ansible-playbook deploy_noteapp.yml
 ```

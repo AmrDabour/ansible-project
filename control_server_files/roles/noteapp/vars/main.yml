@@ -1,0 +1,70 @@
+---
+# Variables for Note-Taking Web App Deployment
+# This file contains all configurable variables for the Ansible playbook
+
+# Application Configuration
+app_name: "note-taking-app"
+app_dir: "/opt/note_app"
+app_user: "ec2-user"
+app_group: "ec2-user"
+
+# Repository Configuration
+repo_url: "https://github.com/AmrDabour/ansible-project.git"
+repo_branch: "master"
+
+# Server Configuration
+server_ip: "98.84.54.112"
+ssh_user: "ec2-user"
+
+# Application Ports
+app_port: 5000
+fallback_port: 8080
+
+# Python Configuration
+python_executable: "/usr/bin/python3"
+pip_executable: "pip3"
+
+# Database Configuration
+database_file: "notes.db"
+database_setup_script: "setup_database.sh"
+
+# Service Configuration
+service_name: "noteapp"
+service_description: "Note Taking Web App"
+
+# Security Configuration
+firewall_ports:
+  - "5000/tcp"
+  - "8080/tcp"
+
+# Environment Configuration
+# Set to 'production' for production deployment, 'development' for dev
+environment: "production"
+
+# Package List
+required_packages:
+  - git
+  - python3
+  - python3-pip
+  - sqlite
+
+# File Permissions
+directory_mode: "0755"
+script_mode: "0755"
+
+# Application Environment
+flask_env: "production"
+flask_debug: false
+
+# Deployment Settings
+force_clone: true
+restart_service: true
+enable_service: true
+
+# Backup Configuration (for future use)
+backup_enabled: false
+backup_dir: "/opt/backups/note_app"
+
+# Monitoring Configuration (for future use)
+monitoring_enabled: false
+log_level: "info"

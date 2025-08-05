@@ -1,0 +1,7 @@
+---
+- name: Deploy Note-Taking Web App using Ansible Role
+  hosts: webservers
+  become: yes
+  
+  roles:
+    - noteapp

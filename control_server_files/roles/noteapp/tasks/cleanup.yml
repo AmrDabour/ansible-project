@@ -1,0 +1,61 @@
+---
+# Cleanup/Removal tasks for noteapp role
+- name: Stop the note app service
+  systemd:
+    name: "{{ service_name }}"
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Remove systemd service file
+  file:
+    path: "/etc/systemd/system/{{ service_name }}.service"
+    state: absent
+
+- name: Reload systemd daemon after service removal
+  systemd:
+    daemon_reload: true
+
+- name: Close firewall ports
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: disabled
+    immediate: true
+  loop: "{{ firewall_ports }}"
+  ignore_errors: true
+
+- name: Remove application directory
+  file:
+    path: "{{ app_dir }}"
+    state: absent
+
+- name: Remove Python packages (optional cleanup)
+  pip:
+    name:
+      - Flask
+      - python-dotenv
+    state: absent
+    executable: "{{ pip_executable }}"
+  ignore_errors: true
+
+- name: Remove git package
+  yum:
+    name: git
+    state: absent
+  ignore_errors: true
+
+- name: Clean Python cache
+  shell: "find /home/{{ app_user }} -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true"
+  ignore_errors: true
+
+- name: Display cleanup results
+  debug:
+    msg: |
+      🧹 Cleanup completed!
+      ✅ Service stopped and removed: {{ service_name }}
+      ✅ Application directory removed: {{ app_dir }}
+      ✅ Firewall ports closed: {{ firewall_ports }}
+      ✅ Server returned to clean state
+      
+      Note: Core system packages (python3, pip, sqlite) were kept for system stability
