@@ -7,7 +7,7 @@ Write-Host "=========================================" -ForegroundColor Green
 # Configuration
 $DB_NAME = "simple_notes"
 $DB_USER = "notes_user"
-$DB_PASSWORD = "notes_password"
+$DB_PASSWORD = "amr"
 
 # Find MySQL client
 $MySQLPath = $null

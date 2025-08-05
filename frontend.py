@@ -1490,8 +1490,8 @@ if __name__ == "__main__":
     # Initialize database
     init_database()
 
-    # Get port from environment or default to 80
-    port = int(os.getenv("FLASK_PORT", 80))
+    # Get port from environment or default to 5000
+    port = int(os.getenv("FLASK_PORT", 5000))
 
     # Test database connection on startup
     conn = get_db_connection()
@@ -1512,7 +1512,7 @@ if __name__ == "__main__":
             print("⚠️  Note: Running on port 80 requires administrator privileges")
             print("   - On Linux/Mac: sudo python3 frontend.py")
             print("   - On Windows: Run as Administrator")
-            print("   - Alternative: Set FLASK_PORT=8080 for non-privileged port")
+            print("   - Alternative: Set FLASK_PORT=5000 for non-privileged port")
 
         try:
             app.run(debug=True, host="0.0.0.0", port=port)
@@ -1520,12 +1520,12 @@ if __name__ == "__main__":
             print("❌ Permission denied to bind to port 80!")
             print("💡 Solutions:")
             print("   1. Run with sudo: sudo python3 frontend.py")
-            print("   2. Use different port: FLASK_PORT=8080 python3 frontend.py")
+            print("   2. Use different port: FLASK_PORT=5000 python3 frontend.py")
             print("   3. Deploy with Ansible for production (Apache handles port 80)")
         except OSError as e:
             if "Address already in use" in str(e):
                 print(f"❌ Port {port} is already in use!")
-                print("💡 Try a different port: FLASK_PORT=8080 python3 frontend.py")
+                print("💡 Try a different port: FLASK_PORT=5000 python3 frontend.py")
             else:
                 print(f"❌ Error starting server: {e}")
     else:

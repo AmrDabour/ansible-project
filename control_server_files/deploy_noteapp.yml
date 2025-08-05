@@ -60,7 +60,7 @@
           ExecStart={{ python_executable }} {{ app_dir }}/frontend.py
           Restart=always
           RestartSec=3
-          Environment=FLASK_ENV={{ flask_env }}
+          Environment=FLASK_PORT={{ app_port }}
           
           [Install]
           WantedBy=multi-user.target

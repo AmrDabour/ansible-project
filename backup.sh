@@ -19,7 +19,7 @@ fi
 
 DB_HOST=${DB_HOST:-"localhost"}
 DB_USER=${DB_USER:-"notes_user"}
-DB_PASSWORD=${DB_PASSWORD:-"notes_password"}
+DB_PASSWORD=${DB_PASSWORD:-"amr"}
 DB_NAME=${DB_NAME:-"simple_notes"}
 DB_PORT=${DB_PORT:-3306}
 

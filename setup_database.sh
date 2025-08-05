@@ -3,7 +3,23 @@
 # Simple Note App - SQLite Database Setup Script
 # This script sets up SQLite database and creates the notes table
 
-set -e  # Exit on any error
+set -e  # Exit on any error[root@ip-10-0-1-82 control_server_files]# ssh -i Ansible.pem ec2-user@98.84.54.112 "sudo systemctl status noteapp"
+● noteapp.service - Note Taking Web App
+     Loaded: loaded (/etc/systemd/system/noteapp.service; enabled; preset: disabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-08-05 19:23:36 UTC; 880ms ago
+    Process: 7864 ExecStart=/usr/bin/python3 /opt/note_app/frontend.py (code=exited, status=1/FAILURE)
+   Main PID: 7864 (code=exited, status=1/FAILURE)
+        CPU: 213ms
+[root@ip-10-0-1-82 control_server_files]# ssh -i Ansible.pem ec2-user@98.84.54.112 "sudo systemctl status noteapp"
+● noteapp.service - Note Taking Web App
+     Loaded: loaded (/etc/systemd/system/noteapp.service; enabled; preset: disabled)
+     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-08-05 19:23:43 UTC; 2s ago
+    Process: 7900 ExecStart=/usr/bin/python3 /opt/note_app/frontend.py (code=exited, status=1/FAILURE)
+   Main PID: 7900 (code=exited, status=1/FAILURE)
+        CPU: 212ms
+[root@ip-10-0-1-82 control_server_files]# ssh -i Ansible.pem ec2-user@98.84.54.112 "ls -la /opt/note_app/notes.db"
+-rw-r--r--. 1 ec2-user ec2-user 12288 Aug  5 19:21 /opt/note_app/notes.db
+[root@ip-10-0-1-82 control_server_files]# 
 
 echo "🚀 Starting SQLite setup for Simple Note App..."
 
@@ -125,7 +141,7 @@ create_env_file() {
 # Simple Note App Database Configuration
 # Using SQLite - no additional configuration needed
 DB_PATH=$DB_FILE
-FLASK_PORT=80
+FLASK_PORT=5000
 EOF
 
     print_status "Environment file created: .env ✓"

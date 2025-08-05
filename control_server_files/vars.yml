@@ -17,8 +17,8 @@ server_ip: "98.84.54.112"
 ssh_user: "ec2-user"
 
 # Application Ports
-app_port: 80
-fallback_port: 5000
+app_port: 5000
+fallback_port: 8080
 
 # Python Configuration
 python_executable: "/usr/bin/python3"
@@ -34,8 +34,8 @@ service_description: "Note Taking Web App"
 
 # Security Configuration
 firewall_ports:
-  - "80/tcp"
   - "5000/tcp"
+  - "8080/tcp"
 
 # Package List
 required_packages:
