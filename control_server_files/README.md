@@ -9,9 +9,20 @@ control_server_files/
 ├── hosts               # Inventory file with target servers
 ├── Ansible.pem         # SSH private key for EC2 access
 ├── deploy_noteapp.yml  # Main deployment playbook
+├── vars.yml            # Single variables file with all configuration
 ├── test_connection.yml # Connection test playbook
 └── README.md          # This file
 ```
+
+## Configuration
+
+All configuration is now centralized in the single `vars.yml` file. Key settings:
+- Application Port: 5000 (configured for non-privileged access)
+- Target Server: 98.84.54.112
+- Application Directory: /opt/note_app
+- Service Name: noteapp
+
+To modify any settings, edit the `vars.yml` file.
 
 ## Prerequisites
 1. AWS EC2 instance running Amazon Linux 2
@@ -41,9 +52,10 @@ ansible-playbook deploy_noteapp.yml
 8. Configures firewall rules
 
 ## Access Your Application
+
 After successful deployment, access your note-taking app at:
-- http://98.84.54.112 (if running on port 80)
-- http://98.84.54.112:5000 (if running on port 5000)
+
+- <http://98.84.54.112:5000> (current configuration)
 
 ## Troubleshooting
 - Ensure your EC2 security group allows the required ports
