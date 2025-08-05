@@ -86,7 +86,7 @@
       
     - name: Display service status
       systemd:
-        name: noteapp
+        name: "{{ service_name }}"
       register: service_status
       
     - name: Show deployment results
@@ -94,5 +94,5 @@
         msg: |
           Deployment completed!
           Service status: {{ service_status.status.ActiveState }}
-          Access your app at: http://98.84.54.112
-          (Note: Make sure your EC2 security group allows HTTP traffic on port 80 or 5000)
+          Access your app at: http://{{ server_ip }}
+          (Note: Make sure your EC2 security group allows HTTP traffic on port {{ app_port }} or {{ fallback_port }})

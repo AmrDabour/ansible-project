@@ -1,0 +1,29 @@
+---
+# Example: How to override variables for different environments
+# Usage: ansible-playbook -e @production-vars.yml deploy_noteapp.yml
+
+# Production Environment Overrides
+app_dir: "/var/www/note_app"
+flask_env: "production"
+flask_debug: false
+app_port: 80
+
+# Production Server
+server_ip: "98.84.54.112"
+
+# Enhanced Security for Production
+firewall_ports:
+  - "80/tcp"
+  - "443/tcp"  # HTTPS
+
+# Backup Configuration
+backup_enabled: true
+backup_dir: "/var/backups/note_app"
+
+# Monitoring
+monitoring_enabled: true
+log_level: "warning"
+
+# Service Configuration
+restart_service: true
+enable_service: true

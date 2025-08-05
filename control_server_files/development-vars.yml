@@ -1,0 +1,27 @@
+---
+# Development Environment Overrides
+# Usage: ansible-playbook -e @development-vars.yml deploy_noteapp.yml
+
+# Development Environment
+app_dir: "/home/ec2-user/note_app_dev"
+flask_env: "development"
+flask_debug: true
+app_port: 5000
+
+# Development Server (same server, different port)
+server_ip: "98.84.54.112"
+
+# Open more ports for development
+firewall_ports:
+  - "5000/tcp"
+  - "8000/tcp"
+  - "3000/tcp"
+
+# Development Settings
+backup_enabled: false
+monitoring_enabled: false
+log_level: "debug"
+
+# Service Configuration
+restart_service: true
+enable_service: false  # Don't auto-start on boot for dev
