@@ -1,0 +1,34 @@
+---
+# System setup tasks
+- name: Update system packages
+  yum:
+    name: "*"
+    state: latest
+  become: yes
+  tags:
+    - system
+    - packages
+
+- name: Install required packages
+  yum:
+    name: "{{ required_packages }}"
+    state: present
+  become: yes
+  tags:
+    - system
+    - packages
+
+- name: Verify Python installation
+  command: "{{ python_executable }} --version"
+  register: python_version
+  changed_when: false
+  tags:
+    - system
+    - verification
+
+- name: Display Python version
+  debug:
+    msg: "Python version: {{ python_version.stdout }}"
+  tags:
+    - system
+    - verification

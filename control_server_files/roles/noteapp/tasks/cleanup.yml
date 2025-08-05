@@ -1,21 +1,26 @@
 ---
-# Cleanup/Removal tasks for noteapp role
+# Simple Note App Cleanup/Removal Tasks
 - name: Stop the note app service
   systemd:
     name: "{{ service_name }}"
     state: stopped
+  ignore_errors: true
+      
+- name: Disable the note app service
+  systemd:
+    name: "{{ service_name }}"
     enabled: false
   ignore_errors: true
-
+      
 - name: Remove systemd service file
   file:
     path: "/etc/systemd/system/{{ service_name }}.service"
     state: absent
-
+        
 - name: Reload systemd daemon after service removal
   systemd:
     daemon_reload: true
-
+        
 - name: Close firewall ports
   firewalld:
     port: "{{ item }}"
@@ -24,38 +29,54 @@
     immediate: true
   loop: "{{ firewall_ports }}"
   ignore_errors: true
-
-- name: Remove application directory
+      
+- name: Remove application directory and all contents
   file:
     path: "{{ app_dir }}"
     state: absent
-
-- name: Remove Python packages (optional cleanup)
+        
+- name: Remove Python packages that were installed for the app
   pip:
-    name:
+    name: 
       - Flask
       - python-dotenv
     state: absent
     executable: "{{ pip_executable }}"
   ignore_errors: true
-
-- name: Remove git package
+      
+- name: Remove application-specific packages (keep system essentials)
   yum:
-    name: git
+    name: 
+      - git
     state: absent
   ignore_errors: true
-
-- name: Clean Python cache
-  shell: "find /home/{{ app_user }} -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true"
+      
+- name: Clean up any remaining Python cache files
+  shell: find /home/{{ app_user }} -name "*.pyc" -delete
   ignore_errors: true
-
-- name: Display cleanup results
+      
+- name: Clean up any remaining __pycache__ directories
+  shell: find /home/{{ app_user }} -name "__pycache__" -type d -exec rm -rf {} +
+  ignore_errors: true
+      
+- name: Remove any environment files from user home
+  file:
+    path: "/home/{{ app_user }}/.env"
+    state: absent
+  ignore_errors: true
+      
+- name: Clean package cache
+  yum:
+    autoremove: true
+  ignore_errors: true
+      
+- name: Show cleanup results
   debug:
     msg: |
       🧹 Cleanup completed!
-      ✅ Service stopped and removed: {{ service_name }}
-      ✅ Application directory removed: {{ app_dir }}
-      ✅ Firewall ports closed: {{ firewall_ports }}
-      ✅ Server returned to clean state
+      - Service '{{ service_name }}' stopped and removed
+      - Application directory '{{ app_dir }}' removed  
+      - Firewall ports closed: {{ firewall_ports }}
+      - System returned to plain state
       
-      Note: Core system packages (python3, pip, sqlite) were kept for system stability
+      The web server is now clean and ready for new deployments.
