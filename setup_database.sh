@@ -3,25 +3,9 @@
 # Simple Note App - SQLite Database Setup Script
 # This script sets up SQLite database and creates the notes table
 
-set -e  # Exit on any error[root@ip-10-0-1-82 control_server_files]# ssh -i Ansible.pem ec2-user@98.84.54.112 "sudo systemctl status noteapp"
-● noteapp.service - Note Taking Web App
-     Loaded: loaded (/etc/systemd/system/noteapp.service; enabled; preset: disabled)
-     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-08-05 19:23:36 UTC; 880ms ago
-    Process: 7864 ExecStart=/usr/bin/python3 /opt/note_app/frontend.py (code=exited, status=1/FAILURE)
-   Main PID: 7864 (code=exited, status=1/FAILURE)
-        CPU: 213ms
-[root@ip-10-0-1-82 control_server_files]# ssh -i Ansible.pem ec2-user@98.84.54.112 "sudo systemctl status noteapp"
-● noteapp.service - Note Taking Web App
-     Loaded: loaded (/etc/systemd/system/noteapp.service; enabled; preset: disabled)
-     Active: activating (auto-restart) (Result: exit-code) since Tue 2025-08-05 19:23:43 UTC; 2s ago
-    Process: 7900 ExecStart=/usr/bin/python3 /opt/note_app/frontend.py (code=exited, status=1/FAILURE)
-   Main PID: 7900 (code=exited, status=1/FAILURE)
-        CPU: 212ms
-[root@ip-10-0-1-82 control_server_files]# ssh -i Ansible.pem ec2-user@98.84.54.112 "ls -la /opt/note_app/notes.db"
--rw-r--r--. 1 ec2-user ec2-user 12288 Aug  5 19:21 /opt/note_app/notes.db
-[root@ip-10-0-1-82 control_server_files]# 
+set -e  # Exit on any error
 
-echo "🚀 Starting SQLite setup for Simple Note App..."
+echo "Starting SQLite setup for Simple Note App..."
 
 # Configuration variables
 DB_FILE="notes.db"
@@ -55,12 +39,12 @@ check_sqlite() {
     print_header "Checking SQLite installation..."
     
     if command -v sqlite3 >/dev/null 2>&1; then
-        print_status "SQLite3 found ✓"
+        print_status "SQLite3 found"
     else
         print_error "SQLite3 not found!"
         echo "SQLite3 should be installed. Checking if it's available as sqlite..."
         if command -v sqlite >/dev/null 2>&1; then
-            print_status "SQLite found ✓"
+            print_status "SQLite found"
         else
             print_error "SQLite not found! It should be installed by the Ansible playbook."
             exit 1
@@ -125,8 +109,8 @@ SELECT id, title, author, created_at FROM notes;
 EOF
 
     if [ $? -eq 0 ]; then
-        print_status "SQLite database '$DB_FILE' created successfully ✓"
-        print_status "Notes table created with sample data ✓"
+        print_status "SQLite database '$DB_FILE' created successfully"
+        print_status "Notes table created with sample data"
     else
         print_error "Failed to create SQLite database!"
         exit 1
@@ -144,7 +128,7 @@ DB_PATH=$DB_FILE
 FLASK_PORT=5000
 EOF
 
-    print_status "Environment file created: .env ✓"
+    print_status "Environment file created: .env"
     echo "  SQLite database path: $DB_FILE"
 }
 
@@ -156,7 +140,7 @@ test_connection() {
         # Test SQLite database by counting records
         record_count=$(sqlite3 "$DB_FILE" "SELECT COUNT(*) FROM notes;")
         if [ $? -eq 0 ]; then
-            print_status "SQLite database test successful ✓"
+            print_status "SQLite database test successful"
             print_status "Found $record_count notes in database"
         else
             print_error "Failed to query SQLite database!"
@@ -169,18 +153,18 @@ test_connection() {
     
     # Test if database file is readable/writable
     if [ -r "$DB_FILE" ] && [ -w "$DB_FILE" ]; then
-        print_status "Database file permissions are correct ✓"
+        print_status "Database file permissions are correct"
     else
         print_warning "Database file permissions may need adjustment"
         chmod 664 "$DB_FILE"
-        print_status "Fixed database file permissions ✓"
+        print_status "Fixed database file permissions"
     fi
 }
 
 # Main setup process
 main() {
     echo "============================================"
-    echo "🗒️  Simple Note App - SQLite Database Setup"
+    echo "Simple Note App - SQLite Database Setup"
     echo "============================================"
     echo ""
     
@@ -195,20 +179,20 @@ main() {
     
     echo ""
     echo "============================================"
-    echo "🎉 Setup completed successfully!"
+    echo "Setup completed successfully!"
     echo "============================================"
     echo ""
-    echo "📋 Next steps:"
+    echo "Next steps:"
     echo "  1. The web application will start automatically"
     echo "  2. Access the app via your web browser"
     echo "  3. Start creating notes!"
     echo ""
-    echo "📁 Database details:"
+    echo "Database details:"
     echo "  Type: SQLite"
     echo "  File: $DB_FILE"
     echo "  Location: $(pwd)/$DB_FILE"
     echo ""
-    echo "🔧 Configuration file: .env"
+    echo "Configuration file: .env"
     echo "   (modify this file to change app settings)"
     echo ""
 }
