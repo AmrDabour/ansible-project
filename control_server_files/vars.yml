@@ -37,6 +37,10 @@ firewall_ports:
   - "5000/tcp"
   - "8080/tcp"
 
+# Environment Configuration
+# Set to 'production' for production deployment, 'development' for dev
+environment: "production"
+
 # Package List
 required_packages:
   - git
