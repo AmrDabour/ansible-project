@@ -9,8 +9,9 @@ control_server_files/
 ├── hosts               # Inventory file with target servers
 ├── Ansible.pem         # SSH private key for EC2 access
 ├── deploy_noteapp.yml  # Main deployment playbook
+├── opposite.yml        # Cleanup playbook (removes everything)
+├── verify_clean.yml    # Verify server is in clean state
 ├── vars.yml            # Single variables file with all configuration
-├── test_connection.yml # Connection test playbook
 └── README.md          # This file
 ```
 
@@ -41,15 +42,47 @@ ansible-playbook test_connection.yml
 ansible-playbook deploy_noteapp.yml
 ```
 
+### 3. Remove/Cleanup the Application (Opposite)
+```bash
+ansible-playbook opposite.yml
+```
+
+### 4. Verify Server is Clean
+```bash
+ansible-playbook verify_clean.yml
+```
+
 ## What the Playbook Does
+
+### deploy_noteapp.yml (Main Deployment)
+
 1. Updates system packages
 2. Installs Git, Python3, pip, and SQLite
-3. Clones the GitHub repository: https://github.com/AmrDabour/ansible-project.git
+3. Clones the GitHub repository: <https://github.com/AmrDabour/ansible-project.git>
 4. Installs Python requirements from requirements.txt
 5. Sets up the SQLite database
 6. Creates a systemd service for the web app
 7. Starts the application service
 8. Configures firewall rules
+
+### opposite.yml (Cleanup/Removal)
+
+1. Stops and disables the noteapp service
+2. Removes the systemd service file
+3. Closes firewall ports that were opened
+4. Removes the entire application directory
+5. Uninstalls application-specific Python packages
+6. Removes git package (keeps system essentials)
+7. Cleans up Python cache files and directories
+8. Returns the server to a plain, clean state
+
+### verify_clean.yml (Verification)
+
+1. Checks if application directory exists
+2. Verifies service file is removed
+3. Confirms service is not running
+4. Displays firewall status
+5. Reports overall cleanliness status
 
 ## Access Your Application
 
