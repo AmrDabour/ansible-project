@@ -1,17 +1,14 @@
 #!/bin/bash
 
-# Simple Note App - MariaDB Database Setup Script
-# This script sets up MariaDB database and creates the notes table
+# Simple Note App - SQLite Database Setup Script
+# This script sets up SQLite database and creates the notes table
 
 set -e  # Exit on any error
 
-echo "🚀 Starting MariaDB setup for Simple Note App..."
+echo "🚀 Starting SQLite setup for Simple Note App..."
 
 # Configuration variables
-DB_NAME="simple_notes"
-DB_USER="notes_user"
-DB_PASSWORD="notes_password"
-DB_ROOT_PASSWORD=""
+DB_FILE="notes.db"
 
 # Colors for output
 RED='\033[0;31m'
@@ -37,135 +34,85 @@ print_header() {
     echo -e "${BLUE}[SETUP]${NC} $1"
 }
 
-# Check if MariaDB is installed
-check_mariadb() {
-    print_header "Checking MariaDB installation..."
+# Check if SQLite is available
+check_sqlite() {
+    print_header "Checking SQLite installation..."
     
-    if command -v mysql >/dev/null 2>&1; then
-        print_status "MariaDB client found ✓"
+    if command -v sqlite3 >/dev/null 2>&1; then
+        print_status "SQLite3 found ✓"
     else
-        print_error "MariaDB client not found!"
-        echo "Please install MariaDB first:"
-        echo "  Ubuntu/Debian: sudo apt update && sudo apt install mariadb-server mariadb-client"
-        echo "  CentOS/RHEL: sudo yum install mariadb-server mariadb"
-        echo "  Fedora: sudo dnf install mariadb-server mariadb"
-        exit 1
-    fi
-    
-    if systemctl is-active --quiet mariadb || systemctl is-active --quiet mysql; then
-        print_status "MariaDB service is running ✓"
-    else
-        print_warning "MariaDB service is not running. Attempting to start..."
-        sudo systemctl start mariadb || sudo systemctl start mysql || {
-            print_error "Failed to start MariaDB service!"
-            echo "Please start MariaDB manually:"
-            echo "  sudo systemctl start mariadb"
-            exit 1
-        }
-        print_status "MariaDB service started ✓"
-    fi
-}
-
-# Get MySQL root password
-get_root_password() {
-    echo ""
-    echo "📋 Database Setup Information:"
-    echo "  Database Name: $DB_NAME"
-    echo "  Database User: $DB_USER"
-    echo "  Database Password: $DB_PASSWORD"
-    echo ""
-    
-    # Try to connect without password first
-    if mysql -u root -e "SELECT 1;" >/dev/null 2>&1; then
-        print_status "Root login without password successful"
-        DB_ROOT_PASSWORD=""
-    else
-        echo -n "Enter MySQL/MariaDB root password: "
-        read -s DB_ROOT_PASSWORD
-        echo ""
-        
-        # Test the password
-        if ! mysql -u root -p"$DB_ROOT_PASSWORD" -e "SELECT 1;" >/dev/null 2>&1; then
-            print_error "Invalid root password!"
+        print_error "SQLite3 not found!"
+        echo "SQLite3 should be installed. Checking if it's available as sqlite..."
+        if command -v sqlite >/dev/null 2>&1; then
+            print_status "SQLite found ✓"
+        else
+            print_error "SQLite not found! It should be installed by the Ansible playbook."
             exit 1
         fi
-        print_status "Root password verified ✓"
     fi
 }
 
-# Create database and user
+# Create SQLite database and table
 create_database() {
-    print_header "Creating database and user..."
+    print_header "Creating SQLite database and table..."
     
-    # Prepare MySQL command
-    MYSQL_CMD="mysql -u root"
-    if [ ! -z "$DB_ROOT_PASSWORD" ]; then
-        MYSQL_CMD="$MYSQL_CMD -p$DB_ROOT_PASSWORD"
+    # Remove existing database if it exists (for clean setup)
+    if [ -f "$DB_FILE" ]; then
+        print_warning "Existing database found, backing up..."
+        mv "$DB_FILE" "${DB_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
     fi
     
-    # Create database and user
-    $MYSQL_CMD << EOF
--- Create database
-CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` 
-CHARACTER SET utf8mb4 
-COLLATE utf8mb4_unicode_ci;
-
--- Create user (drop if exists first)
-DROP USER IF EXISTS '$DB_USER'@'localhost';
-CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
-
--- Grant privileges
-GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
-FLUSH PRIVILEGES;
-
--- Show created database
-SHOW DATABASES LIKE '$DB_NAME';
-EOF
-
-    if [ $? -eq 0 ]; then
-        print_status "Database '$DB_NAME' and user '$DB_USER' created successfully ✓"
-    else
-        print_error "Failed to create database or user!"
-        exit 1
-    fi
-}
-
-# Create notes table
-create_table() {
-    print_header "Creating notes table..."
-    
-    mysql -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" << EOF
+    # Create database and table using SQLite
+    sqlite3 "$DB_FILE" << EOF
 -- Create notes table
 CREATE TABLE IF NOT EXISTS notes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
     content TEXT NOT NULL,
-    author VARCHAR(100) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    -- Indexes for better performance
-    INDEX idx_title (title),
-    INDEX idx_author (author),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Show table structure
-DESCRIBE notes;
+    author TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Insert sample data
-INSERT IGNORE INTO notes (id, title, content, author) VALUES 
-(1, 'Welcome to Simple Note App', 'This is your first note! You can create, read, update, and delete notes using this simple application.\n\nFeatures:\n- Create new notes\n- View all notes\n- Search notes\n- Update existing notes\n- Delete notes\n\nEnjoy taking notes!', 'System'),
-(2, 'Quick Start Guide', 'To get started:\n1. Run the frontend.py script\n2. Choose option 1 to create a new note\n3. Enter title, author, and content\n4. Use option 2 to view all your notes\n\nTip: Use option 4 to search through your notes quickly!', 'Admin');
+INSERT INTO notes (title, content, author) VALUES 
+('Welcome to Simple Note App', 'This is your first note! You can create, read, update, and delete notes using this simple application.
+
+Features:
+- Create new notes
+- View all notes  
+- Search notes
+- Update existing notes
+- Delete notes
+- Beautiful interactive UI
+- Drag and drop note cards
+
+Enjoy taking notes!', 'System'),
+
+('Quick Start Guide', 'To get started:
+1. The web application is now running
+2. Click the + button to create a new note
+3. Fill in title, author, and content
+4. Save your note and see it appear as a draggable card
+5. Click on any note to view, edit, or delete it
+
+Tips:
+- Drag notes around the screen to organize them
+- Use the search feature to find specific notes quickly!
+- Notes are automatically saved to the SQLite database', 'Admin');
+
+-- Show table structure
+.schema notes
 
 -- Show inserted data
 SELECT id, title, author, created_at FROM notes;
 EOF
 
     if [ $? -eq 0 ]; then
-        print_status "Notes table created successfully with sample data ✓"
+        print_status "SQLite database '$DB_FILE' created successfully ✓"
+        print_status "Notes table created with sample data ✓"
     else
-        print_error "Failed to create notes table!"
+        print_error "Failed to create SQLite database!"
         exit 1
     fi
 }
@@ -176,97 +123,58 @@ create_env_file() {
     
     cat > "$(dirname "$0")/.env" << EOF
 # Simple Note App Database Configuration
-DB_HOST=localhost
-DB_USER=$DB_USER
-DB_PASSWORD=$DB_PASSWORD
-DB_NAME=$DB_NAME
-DB_PORT=3306
+# Using SQLite - no additional configuration needed
+DB_PATH=$DB_FILE
+FLASK_PORT=80
 EOF
 
     print_status "Environment file created: .env ✓"
-    echo "  You can modify database settings in this file if needed."
-}
-
-# Install Python dependencies
-install_python_deps() {
-    print_header "Checking Python dependencies..."
-    
-    # Check if pip is available
-    if ! command -v pip3 >/dev/null 2>&1; then
-        print_warning "pip3 not found, trying pip..."
-        if ! command -v pip >/dev/null 2>&1; then
-            print_error "pip not found! Please install Python pip."
-            exit 1
-        fi
-        PIP_CMD="pip"
-    else
-        PIP_CMD="pip3"
-    fi
-    
-    # Install mysql-connector-python
-    if python3 -c "import mysql.connector" 2>/dev/null; then
-        print_status "mysql-connector-python already installed ✓"
-    else
-        print_status "Installing mysql-connector-python..."
-        $PIP_CMD install mysql-connector-python
-        if [ $? -eq 0 ]; then
-            print_status "mysql-connector-python installed successfully ✓"
-        else
-            print_error "Failed to install mysql-connector-python!"
-            echo "You can install it manually with: $PIP_CMD install mysql-connector-python"
-        fi
-    fi
+    echo "  SQLite database path: $DB_FILE"
 }
 
 # Test database connection
 test_connection() {
-    print_header "Testing database connection..."
+    print_header "Testing SQLite database..."
     
-    python3 << EOF
-import mysql.connector
-import os
-
-try:
-    conn = mysql.connector.connect(
-        host='localhost',
-        user='$DB_USER',
-        password='$DB_PASSWORD',
-        database='$DB_NAME',
-        port=3306
-    )
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM notes")
-    count = cursor.fetchone()[0]
-    print(f"✅ Connection successful! Found {count} notes in database.")
-    cursor.close()
-    conn.close()
-except Exception as e:
-    print(f"❌ Connection failed: {e}")
-    exit(1)
-EOF
-
-    if [ $? -eq 0 ]; then
-        print_status "Database connection test successful ✓"
+    if [ -f "$DB_FILE" ]; then
+        # Test SQLite database by counting records
+        record_count=$(sqlite3 "$DB_FILE" "SELECT COUNT(*) FROM notes;")
+        if [ $? -eq 0 ]; then
+            print_status "SQLite database test successful ✓"
+            print_status "Found $record_count notes in database"
+        else
+            print_error "Failed to query SQLite database!"
+            exit 1
+        fi
     else
-        print_error "Database connection test failed!"
+        print_error "SQLite database file not found: $DB_FILE"
         exit 1
+    fi
+    
+    # Test if database file is readable/writable
+    if [ -r "$DB_FILE" ] && [ -w "$DB_FILE" ]; then
+        print_status "Database file permissions are correct ✓"
+    else
+        print_warning "Database file permissions may need adjustment"
+        chmod 664 "$DB_FILE"
+        print_status "Fixed database file permissions ✓"
     fi
 }
 
 # Main setup process
 main() {
     echo "============================================"
-    echo "🗒️  Simple Note App - Database Setup"
+    echo "🗒️  Simple Note App - SQLite Database Setup"
     echo "============================================"
     echo ""
     
+    print_status "Database file: $DB_FILE"
+    echo ""
+    
     # Run setup steps
-    check_mariadb
-    get_root_password
+    check_sqlite
     create_database
-    create_table
     create_env_file
-    install_python_deps
     test_connection
     
     echo ""
@@ -275,17 +183,17 @@ main() {
     echo "============================================"
     echo ""
     echo "📋 Next steps:"
-    echo "  1. Run the application: python3 frontend.py"
-    echo "  2. Start creating notes!"
+    echo "  1. The web application will start automatically"
+    echo "  2. Access the app via your web browser"
+    echo "  3. Start creating notes!"
     echo ""
     echo "📁 Database details:"
-    echo "  Host: localhost"
-    echo "  Database: $DB_NAME"
-    echo "  User: $DB_USER"
-    echo "  Password: $DB_PASSWORD"
+    echo "  Type: SQLite"
+    echo "  File: $DB_FILE"
+    echo "  Location: $(pwd)/$DB_FILE"
     echo ""
     echo "🔧 Configuration file: .env"
-    echo "   (modify this file to change database settings)"
+    echo "   (modify this file to change app settings)"
     echo ""
 }
 
