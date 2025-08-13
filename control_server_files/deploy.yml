@@ -1,7 +1,16 @@
 ---
-- name: Deploy Note-Taking Web App using Ansible Role
+- name: Deploy Simple Note App from GitHub
   hosts: webservers
   become: yes
+  gather_facts: yes
   
+  vars:
+    app_name: "simple_note_app"
+    app_dir: "/opt/{{ app_name }}"
+    app_user: "ec2-user"
+    app_port: 5000
+    repo_url: "https://github.com/AmrDabour/simple_note_app.git"
+    repo_branch: "main"
+    
   roles:
     - noteapp

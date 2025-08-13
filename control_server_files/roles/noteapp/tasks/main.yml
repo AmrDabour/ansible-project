@@ -1,95 +1,116 @@
 ---
-# Simple Note App Deployment Role - Main Tasks
+# Simple Note App Deployment from GitHub
 - name: Update system packages
   yum:
     name: "*"
     state: latest
-      
-- name: Install required packages
+  when: ansible_os_family == "RedHat"
+
+- name: Install required packages (RedHat/CentOS)
   yum:
-    name: "{{ required_packages }}"
+    name:
+      - git
+      - python3
+      - python3-pip
+      - sqlite
     state: present
-        
+  when: ansible_os_family == "RedHat"
+
+- name: Install required packages (Debian/Ubuntu)
+  apt:
+    name:
+      - git
+      - python3
+      - python3-pip
+      - sqlite3
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
 - name: Create application directory
   file:
     path: "{{ app_dir }}"
     state: directory
     owner: "{{ app_user }}"
-    group: "{{ app_group }}"
-    mode: "{{ directory_mode }}"
-        
-- name: Clone the application repository
+    group: "{{ app_user }}"
+    mode: "0755"
+
+- name: Clone Simple Note App from GitHub
   git:
     repo: "{{ repo_url }}"
     dest: "{{ app_dir }}"
-    force: "{{ force_clone }}"
+    version: "{{ repo_branch }}"
+    force: yes
   become_user: "{{ app_user }}"
-      
+
 - name: Install Python requirements
   pip:
     requirements: "{{ app_dir }}/requirements.txt"
-    executable: "{{ pip_executable }}"
+    executable: pip3
 
-- name: Copy database setup script
-  copy:
-    src: setup_database.sh
-    dest: "{{ app_dir }}/setup_database.sh"
-    mode: "{{ script_mode }}"
-    owner: "{{ app_user }}"
-    group: "{{ app_group }}"
-        
-- name: Setup database
-  shell: "cd {{ app_dir }} && ./{{ database_setup_script }}"
+- name: Make database setup scripts executable
+  file:
+    path: "{{ app_dir }}/{{ item }}"
+    mode: "0755"
+  loop:
+    - sqlite.sh
+    - mariadb.sh
+    - backup.sh
+    - restore.sh
+
+- name: Setup SQLite database
+  shell: "cd {{ app_dir }} && ./sqlite.sh"
   become_user: "{{ app_user }}"
-      
-- name: Create systemd service file for the web app
+
+- name: Create systemd service file
   copy:
-    dest: "/etc/systemd/system/{{ service_name }}.service"
+    dest: "/etc/systemd/system/{{ app_name }}.service"
     content: |
       [Unit]
-      Description={{ service_description }}
+      Description=Simple Note App
       After=network.target
       
       [Service]
       Type=simple
       User={{ app_user }}
       WorkingDirectory={{ app_dir }}
-      ExecStart={{ python_executable }} {{ app_dir }}/frontend.py
+      ExecStart=/usr/bin/python3 {{ app_dir }}/frontend.py
       Restart=always
       RestartSec=3
       Environment=FLASK_PORT={{ app_port }}
       
       [Install]
       WantedBy=multi-user.target
-          
+
 - name: Reload systemd daemon
   systemd:
     daemon_reload: yes
-        
+
 - name: Enable and start the note app service
   systemd:
-    name: "{{ service_name }}"
-    enabled: "{{ enable_service }}"
-    state: "{{ 'restarted' if restart_service else 'started' }}"
-        
-- name: Open firewall for HTTP traffic
+    name: "{{ app_name }}"
+    enabled: yes
+    state: restarted
+
+- name: Open firewall for the app (firewalld)
   firewalld:
-    port: "{{ item }}"
+    port: "{{ app_port }}/tcp"
     permanent: yes
     state: enabled
     immediate: yes
-  loop: "{{ firewall_ports }}"
   ignore_errors: true
-      
-- name: Display service status
-  systemd:
-    name: "{{ service_name }}"
-  register: service_status
-      
-- name: Show deployment results
+
+- name: Open firewall for the app (ufw)
+  ufw:
+    rule: allow
+    port: "{{ app_port }}"
+  ignore_errors: true
+
+- name: Display deployment results
   debug:
     msg: |
-      🎉 Deployment completed!
-      Service status: {{ service_status.status.ActiveState }}
-      Access your app at: http://{{ server_ip }}:{{ app_port }}
-      (Note: Make sure your EC2 security group allows HTTP traffic on port {{ app_port }})
+      🎉 Simple Note App deployed successfully!
+      📱 Access your app at: http://{{ ansible_default_ipv4.address }}:{{ app_port }}
+      🔧 Service: {{ app_name }}
+      📁 Directory: {{ app_dir }}
+      ⚠️  Make sure your security group allows port {{ app_port }}

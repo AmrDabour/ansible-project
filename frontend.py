@@ -2,8 +2,8 @@
 
 from flask import Flask, render_template_string, request, jsonify
 import sqlite3
-from datetime import datetime
 import os
+from datetime import datetime
 
 # Try to load environment variables from .env file
 try:
@@ -13,52 +13,95 @@ try:
 except ImportError:
     print("⚠️  python-dotenv not installed. Using default environment variables.")
 
+# Try to import MySQL connector
+try:
+    import mysql.connector
+
+    MYSQL_AVAILABLE = True
+except ImportError:
+    MYSQL_AVAILABLE = False
+    print("⚠️  mysql-connector-python not installed. SQLite only mode.")
+
 app = Flask(__name__)
 app.secret_key = "simple_notes_secret_key_2024"
 
-# Database configuration for SQLite
+# Database configuration
+DB_TYPE = os.getenv("DB_TYPE", "auto")  # auto, mysql, sqlite
 DATABASE_PATH = os.getenv("DB_PATH", "notes.db")
+
+# MySQL configuration
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_USER = os.getenv("DB_USER", "notes_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "amr")
+DB_NAME = os.getenv("DB_NAME", "notes_db")
+DB_PORT = int(os.getenv("DB_PORT", 3306))
+
+# Current database type in use
+CURRENT_DB_TYPE = None
 
 
 # Database connection helper
-def get_db_connection():
-    """Get database connection"""
+def get_mysql_connection():
+    """Get MySQL database connection"""
+    try:
+        conn = mysql.connector.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            charset="utf8mb4",
+            collation="utf8mb4_unicode_ci",
+        )
+        return conn
+    except Exception as err:
+        print(f"MySQL connection error: {err}")
+        return None
+
+
+def get_sqlite_connection():
+    """Get SQLite database connection"""
     try:
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row
         return conn
     except sqlite3.Error as err:
-        print(f"Database connection error: {err}")
+        print(f"SQLite connection error: {err}")
         return None
 
 
-# Initialize database
-def init_database():
-    """Initialize SQLite database with notes table"""
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS notes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    author TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-            )
-            conn.commit()
-            print("✅ Database initialized successfully!")
-        except sqlite3.Error as err:
-            print(f"Database initialization error: {err}")
-        finally:
-            conn.close()
-    else:
-        print("❌ Failed to initialize database!")
+def get_db_connection():
+    """Get database connection - tries MySQL first, then SQLite"""
+    global CURRENT_DB_TYPE
+
+    # If DB_TYPE is specified, use that
+    if DB_TYPE == "mysql" and MYSQL_AVAILABLE:
+        conn = get_mysql_connection()
+        if conn:
+            CURRENT_DB_TYPE = "mysql"
+            return conn
+    elif DB_TYPE == "sqlite":
+        conn = get_sqlite_connection()
+        if conn:
+            CURRENT_DB_TYPE = "sqlite"
+            return conn
+    elif DB_TYPE == "auto":
+        # Try MySQL first if available
+        if MYSQL_AVAILABLE:
+            conn = get_mysql_connection()
+            if conn:
+                CURRENT_DB_TYPE = "mysql"
+                print("🎯 Connected to MySQL/MariaDB")
+                return conn
+
+        # Fallback to SQLite
+        conn = get_sqlite_connection()
+        if conn:
+            CURRENT_DB_TYPE = "sqlite"
+            print("🎯 Connected to SQLite")
+            return conn
+
+    return None
 
 
 # HTML Template with embedded CSS and JavaScript
@@ -1333,18 +1376,30 @@ def get_notes():
         # Convert to list of dictionaries for JSON serialization
         notes_list = []
         for note in notes_data:
-            note_dict = {
-                "id": note[0],
-                "title": note[1],
-                "content": note[2],
-                "author": note[3],
-                "created_at": note[4],
-                "updated_at": note[5],
-            }
+            if CURRENT_DB_TYPE == "mysql":
+                # MySQL connector returns tuples with column access
+                note_dict = {
+                    "id": note[0],
+                    "title": note[1],
+                    "content": note[2],
+                    "author": note[3],
+                    "created_at": str(note[4]),
+                    "updated_at": str(note[5]),
+                }
+            else:
+                # SQLite returns Row objects with dict-like access
+                note_dict = {
+                    "id": note[0],
+                    "title": note[1],
+                    "content": note[2],
+                    "author": note[3],
+                    "created_at": note[4],
+                    "updated_at": note[5],
+                }
             notes_list.append(note_dict)
 
         return jsonify(notes_list)
-    except sqlite3.Error as err:
+    except Exception as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1365,10 +1420,17 @@ def create_note():
 
     try:
         cursor = conn.cursor()
-        query = """
-        INSERT INTO notes (title, content, author, created_at) 
-        VALUES (?, ?, ?, ?)
-        """
+        if CURRENT_DB_TYPE == "mysql":
+            query = """
+            INSERT INTO notes (title, content, author, created_at) 
+            VALUES (%s, %s, %s, %s)
+            """
+        else:
+            query = """
+            INSERT INTO notes (title, content, author, created_at) 
+            VALUES (?, ?, ?, ?)
+            """
+
         cursor.execute(
             query, (data["title"], data["content"], data["author"], datetime.now())
         )
@@ -1376,7 +1438,7 @@ def create_note():
 
         note_id = cursor.lastrowid
         return jsonify({"id": note_id, "message": "Note created successfully"}), 201
-    except sqlite3.Error as err:
+    except Exception as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1397,11 +1459,19 @@ def update_note(note_id):
 
     try:
         cursor = conn.cursor()
-        query = """
-        UPDATE notes 
-        SET title = ?, content = ?, author = ?, updated_at = ?
-        WHERE id = ?
-        """
+        if CURRENT_DB_TYPE == "mysql":
+            query = """
+            UPDATE notes 
+            SET title = %s, content = %s, author = %s, updated_at = %s
+            WHERE id = %s
+            """
+        else:
+            query = """
+            UPDATE notes 
+            SET title = ?, content = ?, author = ?, updated_at = ?
+            WHERE id = ?
+            """
+
         cursor.execute(
             query,
             (data["title"], data["content"], data["author"], datetime.now(), note_id),
@@ -1412,7 +1482,7 @@ def update_note(note_id):
             return jsonify({"error": "Note not found"}), 404
 
         return jsonify({"message": "Note updated successfully"})
-    except sqlite3.Error as err:
+    except Exception as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1428,14 +1498,18 @@ def delete_note(note_id):
 
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+        if CURRENT_DB_TYPE == "mysql":
+            cursor.execute("DELETE FROM notes WHERE id = %s", (note_id,))
+        else:
+            cursor.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+
         conn.commit()
 
         if cursor.rowcount == 0:
             return jsonify({"error": "Note not found"}), 404
 
         return jsonify({"message": "Note deleted successfully"})
-    except sqlite3.Error as err:
+    except Exception as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1456,11 +1530,19 @@ def search_notes():
 
     try:
         cursor = conn.cursor()
-        search_query = """
-        SELECT * FROM notes 
-        WHERE title LIKE ? OR content LIKE ? OR author LIKE ?
-        ORDER BY created_at DESC
-        """
+        if CURRENT_DB_TYPE == "mysql":
+            search_query = """
+            SELECT * FROM notes 
+            WHERE title LIKE %s OR content LIKE %s OR author LIKE %s
+            ORDER BY created_at DESC
+            """
+        else:
+            search_query = """
+            SELECT * FROM notes 
+            WHERE title LIKE ? OR content LIKE ? OR author LIKE ?
+            ORDER BY created_at DESC
+            """
+
         search_pattern = f"%{query}%"
         cursor.execute(search_query, (search_pattern, search_pattern, search_pattern))
         notes_data = cursor.fetchall()
@@ -1468,18 +1550,28 @@ def search_notes():
         # Convert to list of dictionaries for JSON serialization
         notes_list = []
         for note in notes_data:
-            note_dict = {
-                "id": note[0],
-                "title": note[1],
-                "content": note[2],
-                "author": note[3],
-                "created_at": note[4],
-                "updated_at": note[5],
-            }
+            if CURRENT_DB_TYPE == "mysql":
+                note_dict = {
+                    "id": note[0],
+                    "title": note[1],
+                    "content": note[2],
+                    "author": note[3],
+                    "created_at": str(note[4]),
+                    "updated_at": str(note[5]),
+                }
+            else:
+                note_dict = {
+                    "id": note[0],
+                    "title": note[1],
+                    "content": note[2],
+                    "author": note[3],
+                    "created_at": note[4],
+                    "updated_at": note[5],
+                }
             notes_list.append(note_dict)
 
         return jsonify(notes_list)
-    except sqlite3.Error as err:
+    except Exception as err:
         return jsonify({"error": str(err)}), 500
     finally:
         cursor.close()
@@ -1487,16 +1579,19 @@ def search_notes():
 
 
 if __name__ == "__main__":
-    # Initialize database
-    init_database()
-
     # Get port from environment or default to 5000
     port = int(os.getenv("FLASK_PORT", 5000))
 
     # Test database connection on startup
     conn = get_db_connection()
     if conn:
-        print("✅ Database connection successful!")
+        db_info = f"{CURRENT_DB_TYPE.upper()}" if CURRENT_DB_TYPE else "Unknown"
+        if CURRENT_DB_TYPE == "mysql":
+            db_info += f" ({DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME})"
+        else:
+            db_info += f" ({DATABASE_PATH})"
+
+        print(f"✅ Database connection successful! Using: {db_info}")
         conn.close()
         print("🚀 Starting Flask web server...")
         print(f"🌐 Open your browser and go to: http://localhost:{port}")
@@ -1506,7 +1601,7 @@ if __name__ == "__main__":
         print("   - Real-time search")
         print("   - Add/Edit/Delete with beautiful modals")
         print("   - Responsive design")
-        print("   - SQLite database for note storage")
+        print(f"   - {db_info} database for note storage")
 
         if port == 80:
             print("⚠️  Note: Running on port 80 requires administrator privileges")
@@ -1531,6 +1626,15 @@ if __name__ == "__main__":
     else:
         print("❌ Database connection failed!")
         print("Please make sure:")
-        print("1. SQLite3 is installed and accessible")
-        print("2. Write permissions exist in the current directory")
-        print("3. Python sqlite3 module is available (built-in)")
+        print("1. Database is created - run:")
+        print("   - For MariaDB: ./mariadb.sh")
+        print("   - For SQLite: ./sqlite.sh")
+        print("2. Check database server is running (for MariaDB)")
+        print("3. Check .env configuration:")
+        print(f"   - DB_TYPE={DB_TYPE}")
+        print(f"   - DB_PATH={DATABASE_PATH} (SQLite)")
+        print(f"   - DB_HOST={DB_HOST}:{DB_PORT}/{DB_NAME} (MariaDB)")
+        print("4. Install required packages:")
+        print("   - pip install mysql-connector-python (for MariaDB)")
+        if not MYSQL_AVAILABLE:
+            print("⚠️  MySQL connector not available - SQLite only mode")
