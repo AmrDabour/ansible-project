@@ -1578,6 +1578,71 @@ def search_notes():
         conn.close()
 
 
+@app.route("/hi")
+@app.route("/hello")
+def greeting():
+    """Greeting endpoint - responds to friendly greetings"""
+    return jsonify({
+        "message": "Hi there! 👋",
+        "greeting": "Hello! Welcome to the Simple Note App!",
+        "status": "success",
+        "features": [
+            "Create and manage notes",
+            "Real-time search",
+            "Drag and drop interface",
+            "SQLite and MySQL support"
+        ],
+        "endpoints": {
+            "notes": "/api/notes",
+            "search": "/api/search",
+            "health": "/health"
+        }
+    })
+
+
+@app.route("/health")
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Test database connection
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({
+                "status": "unhealthy",
+                "message": "Database connection failed",
+                "database": "unavailable"
+            }), 503
+        
+        # Test database query
+        cursor = conn.cursor()
+        if CURRENT_DB_TYPE == "mysql":
+            cursor.execute("SELECT 1")
+        else:
+            cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        db_info = f"{CURRENT_DB_TYPE.upper()}" if CURRENT_DB_TYPE else "Unknown"
+        if CURRENT_DB_TYPE == "mysql":
+            db_info += f" ({DB_HOST}:{DB_PORT}/{DB_NAME})"
+        else:
+            db_info += f" ({DATABASE_PATH})"
+        
+        return jsonify({
+            "status": "healthy",
+            "message": "Application is running properly",
+            "database": db_info,
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "message": f"Health check failed: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }), 503
+
+
 if __name__ == "__main__":
     # Get port from environment or default to 5000
     port = int(os.getenv("FLASK_PORT", 5000))

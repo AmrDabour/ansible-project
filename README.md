@@ -34,6 +34,30 @@ python3 frontend.py
 http://localhost:5000
 ```
 
+## API Endpoints
+
+### Greeting Endpoints
+```bash
+# Say hello to the app
+curl http://localhost:5000/hi
+curl http://localhost:5000/hello
+```
+
+### Health Check
+```bash
+# Check application health and database status
+curl http://localhost:5000/health
+```
+
+### Notes API
+```bash
+# Get all notes
+curl http://localhost:5000/api/notes
+
+# Search notes
+curl http://localhost:5000/api/search?q=keyword
+```
+
 ## إعدادات قاعدة البيانات (.env)
 
 ```env
